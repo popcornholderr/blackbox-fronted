@@ -96,7 +96,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
   setSavedIds(newSaved);
   localStorage.setItem("savedRooms", JSON.stringify(newSaved));
 
-  await fetch(`http://localhost:5000/api/rooms/${id}/save`, {
+  await fetch(`${BASE_URL}/api/rooms/${id}/save`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
