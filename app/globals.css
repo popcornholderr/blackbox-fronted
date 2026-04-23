@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+/* --- CAPSULE STYLES (Preserved) --- */
+.capsule-active {
+  color: #22c55e; /* Green-500 */
+}
+
+.capsule-inactive {
+  color: #9ca3af; /* Gray-400 */
+}
+
+.capsule-shadow {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* --- TEXT CLAMPING & TRUNCATION --- */
+.truncate-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-6 {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
+}
+
+.clamp-none {
+  -webkit-line-clamp: unset !important;
+  display: block !important;
+}
+
+/* --- MASONRY GRID --- */
+.masonry-grid {
+  column-count: 2;
+  column-gap: 12px;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 12px;
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: 100%;
+}
+
+/* --- NEW: LIQUID JUMP ANIMATION --- */
+/* This handles the "thick liquid" movement when a new drop lands */
+.new-drop-liquid {
+  animation: liquidDrop 0.85s cubic-bezier(0.25, 1.4, 0.5, 1) forwards;
+}
+
+@keyframes liquidDrop {
+  0% { 
+    transform: translateY(-80px) scaleY(1.4) scaleX(0.7); 
+    opacity: 0; 
+    filter: blur(8px); 
+  }
+  60% { 
+    transform: translateY(12px) scaleY(0.85) scaleX(1.15); 
+    filter: blur(0px);
+  }
+  85% {
+    transform: translateY(-5px) scaleY(1.05) scaleX(0.95);
+  }
+  100% { 
+    transform: translateY(0) scale(1); 
+    opacity: 1; 
+  }
+}
+
+/* --- NOTIFICATION DOT BADGE --- */
+.dot-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ff3b3b; /* Vibrant red for visibility */
+  color: white;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+  border: 2px solid white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  z-index: 30;
+  pointer-events: none; /* Won't block clicks to the room tile */
+}
+
+/* Fallback for older browsers */
+.clamp-content {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dot-badge {
+  animation: pulseDot 1.2s infinite;
+}
+
+@keyframes pulseDot {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+
+
+@keyframes growFade {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+    filter: blur(10px);
+  }
+}
+
+.animate-growFade {
+  animation: growFade 6s ease forwards;
+
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 1s ease;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+
+.animate-fadeOut {
+  
+  animation: fadeOut 2s ease forwards;
+  animation-delay: 1s;
+}
+
+.mirror {
+  display: inline-block; /* Crucial: transform won't work without this */
+  transform: scaleX(-1);
+}
