@@ -228,7 +228,9 @@ return(
 
             <p className="text-red-500 text-[10px] font-black uppercase mb-1">Do not forget to copy the link</p>
             <div className="flex items-center gap-2 bg-gray-100 p-4 rounded-xl mb-8">
-              <span className="text-[10px] font-mono truncate flex-1">dropgallery.com/room/{newRoom.title.toLowerCase().replace(/ /g, '-')}</span>
+             <span className="text-[10px] font-mono truncate flex-1">
+  blackbox-omega-peach.vercel.app/room/{newRoom.title.toLowerCase().replace(/ /g, '-')}
+</span>
               <Copy size={16} className="cursor-pointer" onClick={() => navigator.clipboard.writeText(`dropgallery.com/room/${newRoom.title.toLowerCase().replace(/ /g, '-')}`)} />
             </div>
 
