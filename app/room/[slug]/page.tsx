@@ -138,10 +138,11 @@ useEffect(() => {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(`dropgallery.com/room/${slug}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // Use window.location.host to automatically get the current domain
+  navigator.clipboard.writeText(`${window.location.host}/room/${slug}`);
+  setCopied(true);
+  setTimeout(() => setCopied(false), 2000);
+};
 
   const handleImage = (e: any) => {
     const file = e.target.files[0];
@@ -216,7 +217,7 @@ useEffect(() => {
             {data.room.title}
           </h1>
           <div className="flex items-center justify-center gap-2 mt-1 text-[9px] font-bold text-gray-400 tracking-widest uppercase">
-            <span>dropgallery.com/room/{slug}</span>
+            <span>blackbox-omega-peach.vercel.app/room/{slug}</span>
             <button onClick={copyToClipboard} className="hover:text-black transition-colors">
               {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
             </button>
