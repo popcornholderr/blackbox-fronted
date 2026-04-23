@@ -46,15 +46,19 @@ const [agreed, setAgreed] = useState(false);
     fetchRooms();
   }, []);
 
-
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
   
   const fetchRooms = () => {
-    fetch('http://localhost:5000/api/rooms').then(res => res.json()).then(setRooms);
-  };
+  // CHANGED: Using BASE_URL instead of localhost string
+  fetch(`${BASE_URL}/api/rooms`)
+    .then(res => res.json())
+    .then(setRooms)
+    .catch(err => console.error("Fetch rooms failed:", err));
+};
 
   const handleCreateRoom = async () => {
     if (!newRoom.title) return alert("Title is required!");
-    await fetch('http://localhost:5000/api/rooms', {
+    await fetch(`${BASE_URL}/api/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newRoom)
@@ -231,7 +235,15 @@ return(
              <span className="text-[10px] font-mono truncate flex-1">
   blackbox-omega-peach.vercel.app/room/{newRoom.title.toLowerCase().replace(/ /g, '-')}
 </span>
-              <Copy size={16} className="cursor-pointer" onClick={() => navigator.clipboard.writeText(`dropgallery.com/room/${newRoom.title.toLowerCase().replace(/ /g, '-')}`)} />
+              <Copy 
+  size={16} 
+  className="cursor-pointer" 
+  onClick={() => {
+    const roomSlug = newRoom.title.toLowerCase().replace(/ /g, '-');
+    navigator.clipboard.writeText(`blackbox-omega-peach.vercel.app/room/${roomSlug}`);
+    alert("Link copied!");
+  }} 
+/>
             </div>
 
             <button onClick={handleCreateRoom} className="w-full bg-black text-white py-4 rounded-2xl font-black uppercase tracking-widest">Create</button>
