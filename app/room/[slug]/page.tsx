@@ -4,6 +4,8 @@ import { Heart, ThumbsDown, Copy, Plus, X, Image as ImageIcon, ArrowLeft, Check 
 import { useParams, useRouter } from 'next/navigation';
 import AppGuard from '@/components/AppGuard';
 
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
 export default function RoomPage() {
   
   const { slug } = useParams();
@@ -55,7 +57,7 @@ const formatTime = (dateString: string) => {
 };
   const fetchRoom = () => {
     
-    fetch(`http://localhost:5000/api/rooms/${slug}`)
+    fetch(`${BASE_URL}/api/rooms/${slug}`)
       .then(res => res.json())
       .then(setData)
       .catch(err => console.error("Error fetching room:", err));
@@ -110,7 +112,7 @@ useEffect(() => {
   const handleVote = async (dropId: string, type: 'likes' | 'dislikes') => {
     const userId = localStorage.getItem('avatarIndex') || 'anon-' + Math.random(); 
     try {
-      await fetch(`http://localhost:5000/api/drops/${dropId}/vote`, {
+      await fetch(`${BASE_URL}/api/drops/${dropId}/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, type })
@@ -157,7 +159,7 @@ useEffect(() => {
     if (!content && !image) return alert("Write something or add a photo!");
     const av = localStorage.getItem('avatarIndex') || '0';
     
-    await fetch('http://localhost:5000/api/drops', {
+    await fetch(`${BASE_URL}/api/drops`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
