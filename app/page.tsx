@@ -130,7 +130,7 @@ return(
   />
 )}
 
-    <main className={`${!agreed ? "blur-md pointer-events-none" : ""} max-w-md mx-auto min-h-screen bg-white pb-24 relative`}>
+    <main className={`${!agreed ? "blur-md pointer-events-none" : ""} max-w-md mx-auto min-h-screen    pb-24 relative`}>
      <header className="pt-8 px-6 flex justify-center">
   <h1 className="text-3xl font-black tracking-tighter text-center">
   B<span className="mirror">L</span>ACK BOX
@@ -139,10 +139,10 @@ return(
 
       {/* CAPSULE NAV */}
       <div className="flex justify-center mt-6">
-        <div className="bg-gray-100 p-1 rounded-full flex w-64 relative border border-gray-200 capsule-shadow">
-          <div className={`absolute top-1 bottom-1 w-[124px] bg-white rounded-full transition-all duration-300 ${tab === 'saved' ? 'translate-x-[126px]' : 'translate-x-0'}`} />
-          <button onClick={() => setTab('browse')} className={`flex-1 py-2 z-10 font-black text-xs uppercase ${tab === 'browse' ? 'text-green-500' : 'text-gray-400'}`}>Browse</button>
-          <button onClick={() => setTab('saved')} className={`flex-1 py-2 z-10 font-black text-xs uppercase ${tab === 'saved' ? 'text-green-500' : 'text-gray-400'}`}>Saved</button>
+        <div className="bg-white/5 border-white/10 p-1 rounded-full flex w-64 relative border capsule-shadow">
+          <div className={`absolute top-1 bottom-1 w-[124px] bg-white/10 rounded-full transition-all duration-300 ${tab === 'saved' ? 'translate-x-[126px]' : 'translate-x-0'}`} />
+          <button onClick={() => setTab('browse')} className={`flex-1 py-2 z-10 font-black text-xs uppercase ${tab === 'browse' ? 'text-green-500' : 'text-white/40'}`}>Browse</button>
+          <button onClick={() => setTab('saved')} className={`flex-1 py-2 z-10 font-black text-xs uppercase ${tab === 'saved' ? 'text-green-500' : 'text-white/40'}`}>Saved</button>
         </div>
       </div>
 
@@ -152,7 +152,7 @@ return(
           <div onClick={() => setShowAvatarModal(true)} className="w-24 h-24 rounded-full border-4 border-green-500 p-1 cursor-pointer hover:scale-105 transition-transform">
             <img src={`/avatars/${avatarIndex}.png`} className="w-full h-full rounded-full object-cover" />
           </div>
-          <button onClick={() => setShowAvatarModal(true)} className="mt-3 text-[10px] font-black uppercase text-gray-400 tracking-widest">Edit Bitmoji</button>
+          <button onClick={() => setShowAvatarModal(true)} className="mt-3 text-[10px] font-black uppercase text-white/40 tracking-widest">Edit Bitmoji</button>
         </div>
       )}
 
@@ -167,7 +167,7 @@ return(
               <Search size={16} />
             </button>
             <input 
-              className="flex-1 px-2 outline-none text-sm bg-transparent" 
+              className="flex-1 px-2 outline-none text-sm bg-transparent text-white placeholder:text-white/30" 
               placeholder="Search rooms..." 
               onChange={e => setSearchQuery(e.target.value)} 
             />
@@ -211,18 +211,18 @@ return(
       {/* MODAL: ADD ROOM */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-          <div className="bg-white w-full rounded-[2.5rem] p-8 border-2 border-black relative">
+          <div className="bg-[#0a0a0a] border-white/10 w-full rounded-[2.5rem] p-8 border-2 relative">
             <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6"><X /></button>
             <h2 className="text-2xl font-black italic uppercase mb-6">Create Room</h2>
             
-            <label className="text-[10px] font-black uppercase text-gray-400 mb-2 block">Room Title</label>
+            <label className="text-[10px] font-black uppercase text-white/40 mb-2 block">Room Title</label>
             <input 
               className="w-full border-2 border-black p-4 rounded-2xl mb-6 outline-none font-bold" 
               placeholder="E.g. Library Gossips"
               onChange={e => setNewRoom({...newRoom, title: e.target.value})}
             />
 
-            <label className="text-[10px] font-black uppercase text-gray-400 mb-2 block">Theme Color</label>
+            <label className="text-[10px] font-black uppercase text-white/40 mb-2 block">Theme Color</label>
             <input 
               type="color" 
               className="w-full h-12 rounded-xl mb-6 cursor-pointer"
@@ -231,8 +231,8 @@ return(
             />
 
             <p className="text-red-500 text-[10px] font-black uppercase mb-1">Do not forget to copy the link</p>
-            <div className="flex items-center gap-2 bg-gray-100 p-4 rounded-xl mb-8">
-             <span className="text-[10px] font-mono truncate flex-1">
+            <div className="flex items-center gap-2 bg-white/5 border-white/10 p-4 rounded-xl mb-8">
+             <span className="text-[10px] text-white/70 font-mono truncate flex-1">
   blackbox-omega-peach.vercel.app/room/{newRoom.title.toLowerCase().replace(/ /g, '-')}
 </span>
               <Copy 
@@ -254,7 +254,7 @@ return(
       {/* MODAL: BITMOJI PICKER */}
       {showAvatarModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-          <div className="bg-white w-full rounded-[2.5rem] p-8 border-2 border-black max-h-[80vh] overflow-y-auto">
+          <div className="   w-full rounded-[2.5rem] p-8 border-2 border-black max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-black uppercase italic">Pick Your Bitmoji</h2>
                 <button onClick={() => setShowAvatarModal(false)}><X /></button>
@@ -264,7 +264,7 @@ return(
                 <div 
                   key={i} 
                   onClick={() => selectAvatar(i)}
-                  className={`aspect-square rounded-full border-2 p-1 cursor-pointer transition-all ${avatarIndex === i ? 'border-green-500 bg-green-50 scale-110' : 'border-gray-100 hover:border-black'}`}
+                  className={`aspect-square rounded-full border-2 p-1 cursor-pointer transition-all ${avatarIndex === i ? 'border-green-500 bg-green-50 scale-110' : 'border-white/10 hover:border-white'}`}
                 >
                   <img src={`/avatars/${i}.png`} className="w-full h-full rounded-full object-cover" />
                 </div>
