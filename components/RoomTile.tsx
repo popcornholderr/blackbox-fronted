@@ -10,7 +10,7 @@ export default function RoomTile({ room, isSaved, onSave, onOpen }: any){
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault(); // Stop Link from firing
     e.stopPropagation(); // Stop parent click
-    navigator.clipboard.writeText(`dropgallery.com/room/${room.slug}`);
+    navigator.clipboard.writeText(`${window.location.origin}/room/${room.slug}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -40,7 +40,7 @@ export default function RoomTile({ room, isSaved, onSave, onOpen }: any){
 
         <button 
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSave(); }}
-          className="bg-white/20 p-2.5 rounded-full backdrop-blur-md border border-white/30 hover:bg-white/40 transition-all"
+          className="p-2.5 rounded-full backdrop-blur-md border bg-white/10 border-white/10 hover:  /40 transition-all"
         >
           <Bookmark 
             size={20} 
