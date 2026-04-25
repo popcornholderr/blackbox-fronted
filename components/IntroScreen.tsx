@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 export default function IntroScreen({ onFinish }: { onFinish: () => void }) {
   const [step, setStep] = useState(0);
@@ -17,7 +18,7 @@ export default function IntroScreen({ onFinish }: { onFinish: () => void }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-white flex items-center justify-center z-[999] overflow-hidden">
+    <div className="fixed inset-0   flex items-center justify-center z-[999] overflow-hidden">
       
       {/* STEP 1 */}
       {step === 0 && (
@@ -25,10 +26,14 @@ export default function IntroScreen({ onFinish }: { onFinish: () => void }) {
           <p className="text-2xl font-black">Shushhhhhh!!</p>
 
           {/* 👉 YOUR IMAGE HERE */}
-          <img 
-            src="/emoji.png" 
-            className="mx-auto my-4 w-20 h-20 object-contain"
-          />
+          <Image
+  src="/emoji.png"
+  alt="emoji"
+  width={80}
+  height={80}
+  priority
+  className="mx-auto my-4 object-contain"
+/>
 
           <p className="text-xl font-bold">it's gossip time</p>
         </div>
