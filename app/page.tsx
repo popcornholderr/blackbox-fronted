@@ -43,17 +43,30 @@ const [agreed, setAgreed] = useState(false);
   setLastSeenMap(seen);
     setSavedIds(saved);
     setAvatarIndex(parseInt(av));
-    fetchRooms();
+    // 🔥 Load cached rooms instantly
+const cached = localStorage.getItem("cachedRooms");
+if (cached) {
+  setRooms(JSON.parse(cached));
+}
+
+// Then fetch fresh data in background
+fetchRooms();
   }, []);
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
   
-  const fetchRooms = () => {
-  // CHANGED: Using BASE_URL instead of localhost string
-  fetch(`${BASE_URL}/api/rooms`)
-    .then(res => res.json())
-    .then(setRooms)
-    .catch(err => console.error("Fetch rooms failed:", err));
+  const fetchRooms = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/rooms`);
+    const data = await res.json();
+
+    setRooms(data);
+
+    // 🔥 SAVE TO CACHE
+    localStorage.setItem("cachedRooms", JSON.stringify(data));
+  } catch (err) {
+    console.error("Fetch rooms failed:", err);
+  }
 };
 
   const handleCreateRoom = async () => {
@@ -176,32 +189,60 @@ return(
       )}
 
       {/* GRID */}
-      <div className="px-6 mt-8 grid grid-cols-2 gap-6">
-  {filtered.map((room: any) => {
+      {filtered.length === 0 ? (
+  // 🧠 LOADING SKELETON (matches your UI vibe)
+  <div className="px-6 mt-8 grid grid-cols-2 gap-6">
+    {[...Array(6)].map((_, i) => (
+      <div
+        key={i}
+        className="aspect-square rounded-[2.5rem] bg-white/5 border border-white/10 animate-pulse"
+      >
+        <div className="p-5 flex flex-col justify-between h-full">
+          
+          {/* Fake title */}
+          <div className="h-4 w-3/4 bg-white/10 rounded"></div>
 
-  const lastSeen = lastSeenMap[room._id] || 0;
+          {/* Fake bottom section */}
+          <div className="flex justify-between items-end">
+            <div>
+              <div className="h-2 w-12 bg-white/10 rounded mb-2"></div>
+              <div className="h-2 w-16 bg-white/10 rounded"></div>
+            </div>
 
-  const hasNew = new Date(room.lastDropAt).getTime() > lastSeen;
+            <div className="w-8 h-8 rounded-full bg-white/10"></div>
+          </div>
 
-  return (
-    <div key={room._id} className="relative">
-
-      {/* ✅ REPLACE OLD STATIC DOT */}
-      {tab === 'saved' && hasNew && (
-        <div className="dot-badge">!</div>
-      )}
-
-        <RoomTile 
-          room={room} 
-          isSaved={savedIds.includes(room._id)} 
-          onSave={() => toggleSave(room._id)} 
-          onOpen={() => markRoomSeen(room._id)}
-        />
-
+        </div>
       </div>
-    );
-  })}
-</div>
+    ))}
+  </div>
+) : (
+  // ✅ REAL GRID
+  <div className="px-6 mt-8 grid grid-cols-2 gap-6">
+    {filtered.map((room: any) => {
+
+      const lastSeen = lastSeenMap[room._id] || 0;
+      const hasNew = new Date(room.lastDropAt).getTime() > lastSeen;
+
+      return (
+        <div key={room._id} className="relative">
+
+          {tab === 'saved' && hasNew && (
+            <div className="dot-badge">!</div>
+          )}
+
+          <RoomTile 
+            room={room} 
+            isSaved={savedIds.includes(room._id)} 
+            onSave={() => toggleSave(room._id)} 
+            onOpen={() => markRoomSeen(room._id)}
+          />
+
+        </div>
+      );
+    })}
+  </div>
+)}
 
       {/* FLOATING ADD BUTTON */}
       <button onClick={() => setShowAddModal(true)} className="fixed bottom-8 right-8 w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-2xl z-50">
