@@ -179,7 +179,7 @@ useEffect(() => {
   };
 
   if (!data) return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="min-h-screen flex items-center justify-center  ">
         <div className="text-xl font-black italic animate-pulse uppercase tracking-tighter">Fetching Drops...</div>
     </div>
   );
@@ -189,7 +189,7 @@ useEffect(() => {
     <AppGuard>
     <main className="min-h-screen pb-32 relative overflow-x-hidden" style={{ backgroundColor: `${data.room.color}05` }}>
       {/* HEADER */}
-      <header className="p-8 bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 flex items-center">
+      <header className="p-8 bg-black/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 flex items-center">
         <button 
   onClick={() => {
     // 1. Mark drops as seen (your existing logic)
@@ -209,7 +209,7 @@ useEffect(() => {
       router.back(); // Go back normally
     }
   }}
-  className="p-2 border-2 border-black rounded-xl active:scale-90 transition-transform bg-white"
+  className="p-2 border border-white/20 rounded-xl bg-black"
 >
   <ArrowLeft size={18} />
 </button>
@@ -218,9 +218,9 @@ useEffect(() => {
           <h1 className="text-2xl font-black uppercase italic truncate max-w-[250px] mx-auto" style={{ color: data.room.color }}>
             {data.room.title}
           </h1>
-          <div className="flex items-center justify-center gap-2 mt-1 text-[9px] font-bold text-gray-400 tracking-widest uppercase">
+          <div className="flex items-center justify-center gap-2 mt-1 text-[9px] font-bold hover:text-white tracking-widest uppercase">
             <span>blackbox-omega-peach.vercel.app/room/{slug}</span>
-            <button onClick={copyToClipboard} className="hover:text-black transition-colors">
+            <button onClick={copyToClipboard} className="hover:text-white transition-colors">
               {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
             </button>
           </div>
@@ -238,7 +238,7 @@ useEffect(() => {
           return (
             <div 
   key={drop._id} 
-  className="relative masonry-item p-5 rounded-[2rem] border border-black/5 shadow-sm flex flex-col transition-all duration-500"
+  className="relative masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)]  flex flex-col transition-all duration-500"
   style={getDropStyle(idx)}
 >
   {/* 🔴 THIS IS THE SPOT */}
@@ -247,21 +247,21 @@ useEffect(() => {
     )}
               {/* User Identity */}
               <div className="flex items-center gap-2 mb-3">
-                <img src={`/avatars/${drop.avatarIndex}.png`} className="w-8 h-8 rounded-full border bg-white shadow-sm" alt="AV" />
-                <span className="text-[10px] font-black uppercase text-black/60 truncate max-w-[100px]">{drop.tempName}</span>
+                <img src={`/avatars/${drop.avatarIndex}.png`} className="w-8 h-8 rounded-full border   shadow-sm" alt="AV" />
+                <span className="text-[10px] font-black uppercase text-white/60 truncate max-w-[100px]">{drop.tempName}</span>
               </div>
 
               {/* Content */}
               {drop.image && <img src={drop.image} className="rounded-2xl mb-3 w-full border border-black/5 object-cover" alt="Drop" />}
               
               <div className="relative overflow-hidden transition-all duration-300">
-                <p className={`text-sm font-medium leading-relaxed text-black/80 ${isExpanded ? '' : 'line-clamp-6'}`}>
+                <p className={`text-sm font-medium leading-relaxed text-white/90 ${isExpanded ? '' : 'line-clamp-6'}`}>
                   {drop.content}
                 </p>
                 {drop.content.length > 200 && (
                   <button 
                     onClick={() => toggleExpand(drop._id)}
-                    className="text-[10px] font-black uppercase text-black/40 mt-2 hover:text-black transition-colors underline decoration-dotted"
+                    className="text-[10px] font-black uppercase text-white/40 mt-2 hover:text-white transition-colors underline decoration-dotted"
                   >
                     {isExpanded ? "Show Less" : "Read More..."}
                   </button>
@@ -269,22 +269,22 @@ useEffect(() => {
               </div>
 
               {/* Interaction Footer */}
-              <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3">
+              <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
                 <div className="flex gap-4">
                   <button 
                     onClick={() => handleVote(drop._id, 'likes')}
-                    className={`flex items-center gap-1 text-[10px] font-black transition-transform active:scale-125 ${hasLiked ? 'text-black' : 'text-gray-400'}`}
+                    className={`flex items-center gap-1 text-[10px] font-black transition-transform active:scale-125 ${hasLiked ? 'text-white' : 'hover:text-white'}`}
                   >
                     <Heart size={12} fill={hasLiked ? "black" : "none"} /> {drop.likes.length}
                   </button>
                   <button 
                     onClick={() => handleVote(drop._id, 'dislikes')}
-                    className={`flex items-center gap-1 text-[10px] font-black transition-transform active:scale-125 ${hasDisliked ? 'text-black' : 'text-gray-400'}`}
+                    className={`flex items-center gap-1 text-[10px] font-black transition-transform active:scale-125 ${hasDisliked ? 'text-white' : 'hover:text-white'}`}
                   >
                     <ThumbsDown size={12} fill={hasDisliked ? "black" : "none"} /> {drop.dislikes.length}
                   </button>
                 </div>
-                <span className="text-[8px] text-gray-400 font-black uppercase tracking-tighter">{formatTime(drop.createdAt)}</span>
+                <span className="text-[8px] hover:text-white font-black uppercase tracking-tighter">{formatTime(drop.createdAt)}</span>
               </div>
             </div>
           );
@@ -302,34 +302,34 @@ useEffect(() => {
       {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 border-2 border-black shadow-2xl animate-in slide-in-from-bottom-10 duration-300">
+          <div className="  w-full max-w-md rounded-[2.5rem] p-8 border-2 border-black shadow-2xl animate-in slide-in-from-bottom-10 duration-300">
             <div className="flex justify-between mb-6">
               <h2 className="text-xl font-black uppercase italic tracking-tighter">New Drop</h2>
               <button onClick={() => setShowModal(false)} className="p-1 hover:rotate-90 transition-transform"><X /></button>
             </div>
             
             <input 
-              className="w-full border-2 border-black p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-gray-300 focus:bg-gray-50 transition-colors" 
+              className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111] transition-colors" 
               placeholder="Display Name..." 
               value={name} onChange={e => setName(e.target.value)}
             />
             
             <textarea 
   maxLength={400}
-  className="w-full border-2 border-black p-4 rounded-xl mb-2 h-32 resize-none outline-none placeholder:text-gray-300 focus:bg-gray-50 transition-colors" 
+  className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-2 h-32 resize-none outline-none placeholder:text-white/30 focus:bg-[#111] transition-colors" 
   placeholder="What's the tea?" 
   value={content} 
   onChange={e => setContent(e.target.value)}
 />
 
-<p className="text-[10px] text-gray-400 text-right font-bold">
+<p className="text-[10px] hover:text-white text-right font-bold">
   {content.length}/400
 </p>
 
             <div className="flex items-center gap-4 mb-8">
-              <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 p-4 rounded-xl cursor-pointer hover:border-black transition-all bg-gray-50 hover:bg-white">
-                <ImageIcon size={20} className="text-gray-400" />
-                <span className="text-[10px] font-black uppercase text-gray-400">{image ? "Image Selected" : "Add Image (500KB)"}</span>
+              <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-white/10 bg-white/5 p-4 rounded-xl cursor-pointer hover:bg-white/10 transition-all hover: ">
+                <ImageIcon size={20} className="hover:text-white" />
+                <span className="text-[10px] font-black uppercase hover:text-white">{image ? "Image Selected" : "Add Image (500KB)"}</span>
                 <input type="file" className="hidden" accept="image/*" onChange={handleImage} />
               </label>
               {image && <button onClick={() => setImage(null)} className="text-red-500 font-black text-[10px] uppercase underline underline-offset-4">Remove</button>}
