@@ -1,16 +1,16 @@
 "use client";
+
 import { useState, useEffect } from 'react';
-// ✅ ADD ChevronDown HERE
-import { 
-  Heart, 
-  ThumbsDown, 
-  Copy, 
-  Plus, 
-  X, 
-  Image as ImageIcon, 
-  ArrowLeft, 
-  Check, 
-  ChevronDown // <--- Add this one
+import {
+  Heart,
+  ThumbsDown,
+  Copy,
+  Plus,
+  X,
+  Image as ImageIcon,
+  ArrowLeft,
+  Check,
+  MessageCircle
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import AppGuard from '@/components/AppGuard';
@@ -18,10 +18,9 @@ import AppGuard from '@/components/AppGuard';
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function RoomPage() {
-  
   const { slug } = useParams();
   const router = useRouter();
-  
+
   const [data, setData] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -30,12 +29,7 @@ export default function RoomPage() {
   const [content, setContent] = useState("");
   const [image, setImage] = useState<string | null>(null);
 
-  const [replyBox, setReplyBox] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState("");
-  const [replyName, setReplyName] = useState("");
-  const [expandedReplies, setExpandedReplies] = useState<string[]>([]);
   const [seenDrops, setSeenDrops] = useState<string[]>([]);
-  const [expandedDrops, setExpandedDrops] = useState<string[]>([]);
 
   const formatTime = (dateString: string) => {
     const now = new Date();
@@ -93,7 +87,8 @@ export default function RoomPage() {
     return () => window.removeEventListener("beforeunload", handleLeave);
   }, [data, slug]);
 
-  const handleVote = async (dropId: string, type: 'likes' | 'dislikes') => {
+  const handleVote = async (dropId: string, type: 'likes' | 'dislikes', e: React.MouseEvent) => {
+    e.stopPropagation(); // prevent card click
     const userId = localStorage.getItem('avatarIndex') || 'anon-' + Math.random();
     try {
       await fetch(`${BASE_URL}/api/drops/${dropId}/vote`, {
@@ -105,12 +100,6 @@ export default function RoomPage() {
     } catch (err) {
       console.error("Vote failed:", err);
     }
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedDrops(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
   };
 
   const getDropStyle = (index: number) => {
@@ -157,54 +146,14 @@ export default function RoomPage() {
     fetchRoom();
   };
 
-  // ✅ Reply logic extracted to its own function with explicit dropId string
-const handleReply = async (dropId: string) => {
-  if (!replyContent.trim()) return;
-
-  // Remove trailing slash from BASE_URL if it exists
-  const apiUrl = BASE_URL.replace(/\/$/, "");
-  const targetUrl = `${apiUrl}/api/drops/${dropId.trim()}/reply`;
-
-  console.log("Attempting request to:", targetUrl);
-
-  try {
-    const res = await fetch(targetUrl, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({
-        content: replyContent,
-        tempName: replyName || "Anonymous",
-        avatarIndex: parseInt(localStorage.getItem('avatarIndex') || "0")
-      })
-    });
-
-    const contentType = res.headers.get("content-type");
-    
-    if (!res.ok) {
-      if (contentType && contentType.includes("application/json")) {
-        const errorData = await res.json();
-        console.error("API Error Object:", errorData);
-      } else {
-        const htmlError = await res.text();
-        console.error("URL ROUTING ERROR. Backend sent HTML. First 50 chars:", htmlError.slice(0, 50));
-        alert("Check Console: The backend route /api/drops/:id/reply is not responding.");
-      }
-      return;
+  const navigateToDrop = (dropId: string) => {
+    // Mark as seen when navigating
+    const currentSeen = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
+    if (!currentSeen.includes(dropId)) {
+      localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...currentSeen, dropId]));
     }
-
-    // If successful
-    const updatedDrop = await res.json();
-    setReplyContent("");
-    setReplyName("");
-    setReplyBox(null);
-    fetchRoom(); // Refresh data
-  } catch (err) {
-    console.error("Network Error:", err);
-  }
-};
+    router.push(`/room/${slug}/${dropId}`);
+  };
 
   if (!data) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -214,245 +163,170 @@ const handleReply = async (dropId: string) => {
 
   return (
     <AppGuard>
-    <main className="min-h-screen pb-32 relative overflow-x-hidden" style={{ backgroundColor: `${data.room.color}05` }}>
+      <main className="min-h-screen pb-32 relative overflow-x-hidden" style={{ backgroundColor: `${data.room.color}05` }}>
 
-      {/* HEADER */}
-      <header className="p-8 bg-black/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 flex items-center">
-        <button
-          onClick={() => {
-            const currentSeen = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
-            const newIds = data.drops
-              .map((d: any) => String(d._id).trim())
-              .filter((id: string) => !currentSeen.includes(id));
-            localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...currentSeen, ...newIds]));
-            if (window.history.length <= 2) router.push('/');
-            else router.back();
-          }}
-          className="p-2 border border-white/20 rounded-xl bg-black"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        
-        <div className="flex-1 text-center pr-10">
-          <h1 className="text-2xl font-black uppercase italic truncate max-w-[250px] mx-auto" style={{ color: data.room.color }}>
-            {data.room.title}
-          </h1>
-          <div className="flex items-center justify-center gap-2 mt-1 text-[9px] font-bold hover:text-white tracking-widest uppercase">
-            <span>blackbox-omega-peach.vercel.app/room/{slug}</span>
-            <button onClick={copyToClipboard} className="hover:text-white transition-colors">
-              {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-            </button>
+        {/* HEADER */}
+        <header className="p-8 bg-black/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 flex items-center">
+          <button
+            onClick={() => {
+              const currentSeen = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
+              const newIds = data.drops
+                .map((d: any) => String(d._id).trim())
+                .filter((id: string) => !currentSeen.includes(id));
+              localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...currentSeen, ...newIds]));
+              if (window.history.length <= 2) router.push('/');
+              else router.back();
+            }}
+            className="p-2 border border-white/20 rounded-xl bg-black"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
+          <div className="flex-1 text-center pr-10">
+            <h1 className="text-2xl font-black uppercase italic truncate max-w-[250px] mx-auto" style={{ color: data.room.color }}>
+              {data.room.title}
+            </h1>
+            <div className="flex items-center justify-center gap-2 mt-1 text-[9px] font-bold hover:text-white tracking-widest uppercase">
+              <span>blackbox-omega-peach.vercel.app/room/{slug}</span>
+              <button onClick={copyToClipboard} className="hover:text-white transition-colors">
+                {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* MASONRY FEED */}
-      <div className="p-4 masonry-grid">
-        {data.drops.map((drop: any, idx: number) => {
+        {/* MASONRY FEED */}
+        <div className="p-4 masonry-grid">
+          {data.drops.map((drop: any, idx: number) => {
+            const dropId = String(drop._id).trim();
+            const hasLiked = drop.likes.includes(localStorage.getItem('avatarIndex') || 'anon');
+            const hasDisliked = drop.dislikes.includes(localStorage.getItem('avatarIndex') || 'anon');
+            const isNew = !seenDrops.includes(dropId);
+            const replyCount = (drop.replies || []).length;
 
-          // ✅ THE FIX: one clean string ID, used everywhere for this drop
-          const dropId = String(drop._id).trim();
+            // 50 character truncation
+            const isLong = drop.content.length > 50;
+            const displayText = isLong ? drop.content.slice(0, 50) + "…" : drop.content;
 
-          const isExpanded = expandedDrops.includes(dropId);
-          const hasLiked = drop.likes.includes(localStorage.getItem('avatarIndex') || 'anon');
-          const hasDisliked = drop.dislikes.includes(localStorage.getItem('avatarIndex') || 'anon');
-          const isNew = !seenDrops.includes(dropId);
-
-          return (
-            <div
-              key={dropId}
-              className="relative masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col transition-all duration-500"
-              style={getDropStyle(idx)}
-            >
-              {isNew && (
-                <div className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
-              )}
-
-              <div className="flex items-center gap-2 mb-3">
-                <img src={`/avatars/${drop.avatarIndex}.png`} className="w-8 h-8 rounded-full border shadow-sm" alt="AV" />
-                <span className="text-[10px] font-black uppercase text-white/60 truncate max-w-[100px]">{drop.tempName}</span>
-              </div>
-
-              {drop.image && <img src={drop.image} className="rounded-2xl mb-3 w-full border border-black/5 object-cover" alt="Drop" />}
-              
-              <div className="relative transition-all duration-300">
-                <p className="text-sm font-medium leading-relaxed text-white/80">
-                  {isExpanded ? drop.content : drop.content.slice(0, 200)}
-                </p>
-                {drop.content.length > 200 && (
-                  <button
-                    onClick={() => toggleExpand(dropId)}
-                    className="text-[10px] font-black uppercase text-white/40 mt-2 hover:text-white transition-colors underline decoration-dotted"
-                  >
-                    {isExpanded ? "Show Less" : "Show More"}
-                  </button>
+            return (
+              <div
+                key={dropId}
+                onClick={() => navigateToDrop(dropId)}
+                className="relative masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col transition-all duration-300 cursor-pointer hover:scale-[1.01] hover:border-white/20 active:scale-[0.98]"
+                style={getDropStyle(idx)}
+              >
+                {isNew && (
+                  <div className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
                 )}
-              </div>
 
-              <div className="mt-4 border-t border-white/10 pt-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleVote(dropId, 'likes')}
-                      className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'hover:text-white'}`}
-                    >
-                      <Heart size={12} fill={hasLiked ? "black" : "none"} /> {drop.likes.length}
-                    </button>
-                    <button
-                      onClick={() => handleVote(dropId, 'dislikes')}
-                      className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'hover:text-white'}`}
-                    >
-                      <ThumbsDown size={12} fill={hasDisliked ? "black" : "none"} /> {drop.dislikes.length}
-                    </button>
-                  </div>
-                  <span className="text-[8px] font-black uppercase">
-                    {formatTime(drop.createdAt)}
-                  </span>
+                <div className="flex items-center gap-2 mb-3">
+                  <img src={`/avatars/${drop.avatarIndex}.png`} className="w-8 h-8 rounded-full border shadow-sm" alt="AV" />
+                  <span className="text-[10px] font-black uppercase text-white/60 truncate max-w-[100px]">{drop.tempName}</span>
                 </div>
 
-                <button
-                  onClick={() => {
-                    setReplyBox(dropId);
-                    setReplyContent("");
-                    setReplyName("");
-                  }}
-                  className="text-[10px] font-black text-white/40 hover:text-white"
-                >
-                  Reply
-                </button>
-              </div>
+                {drop.image && (
+                  <img src={drop.image} className="rounded-2xl mb-3 w-full border border-black/5 object-cover" alt="Drop" />
+                )}
 
-              {(drop.replies || []).length > 0 && (
-  <button
-    onClick={() =>
-      setExpandedReplies(prev =>
-        prev.includes(dropId)
-          ? prev.filter(id => id !== dropId)
-          : [...prev, dropId]
-      )
-    }
-    className="flex items-center gap-1.5 text-[10px] font-black uppercase text-white/40 mt-3 hover:text-white transition-all group"
-  >
-    <span>{drop.replies.length} sub drops</span>
-    
-    {/* Dynamic Arrow Logic: Flips Up/Down based on state */}
-    <div className={`transition-transform duration-300 ${expandedReplies.includes(dropId) ? 'rotate-180' : 'rotate-0'}`}>
-      <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
-    </div>
-  </button>
-)}
-
-              {expandedReplies.includes(dropId) && (
-  <div className="mt-4 ml-2 pl-4 border-l border-white/10 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-    {(drop.replies || []).map((reply: any, i: number) => (
-      <div key={i} className="flex gap-3 items-start">
-        
-        {/* Bitmoji Implementation */}
-        <img 
-          src={`/avatars/${reply.avatarIndex ?? 0}.png`} 
-          className="w-7 h-7 rounded-full border border-white/10 bg-black shadow-sm flex-shrink-0" 
-          alt="Bitmoji" 
-        />
-        
-        <div className="flex-1 bg-white/[0.03] p-3 rounded-2xl rounded-tl-none border border-white/5">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[9px] font-black uppercase text-white/40 tracking-widest">
-              {reply.tempName || "Anonymous"}
-            </span>
-          </div>
-          <p className="text-xs text-white/80 leading-relaxed font-medium">
-            {reply.content}
-          </p>
-        </div>
-      </div>
-    ))}
-  </div>
-)}
-
-              {/* ✅ replyBox is a string, dropId is a string — comparison works correctly */}
-              {replyBox === dropId && (
-                <div className="mt-3 p-4 border border-white/10 rounded-2xl bg-black">
-                  <input
-                    value={replyName}
-                    onChange={(e) => setReplyName(e.target.value)}
-                    placeholder="Display Name..."
-                    className="w-full mb-3 p-3 rounded-xl bg-[#111] border border-white/10 text-white text-sm outline-none"
-                  />
-                  <textarea
-                    maxLength={400}
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    placeholder="What's the tea?"
-                    className="w-full p-3 rounded-xl bg-[#111] border border-white/10 text-white text-sm outline-none resize-none h-24"
-                  />
-                  <p className="text-[10px] text-right mt-1 text-white/40">
-                    {replyContent.length}/400
+                <div className="flex-1">
+                  <p className="text-sm font-medium leading-relaxed text-white/80">
+                    {displayText}
                   </p>
-                  <div className="flex justify-end mt-3 gap-2">
+                  {isLong && (
                     <button
-                      onClick={() => { setReplyBox(null); setReplyContent(""); setReplyName(""); }}
-                      className="text-xs text-gray-400"
+                      onClick={(e) => { e.stopPropagation(); navigateToDrop(dropId); }}
+                      className="text-[10px] font-black uppercase mt-1 hover:text-white transition-colors"
+                      style={{ color: data.room.color }}
                     >
-                      Cancel
+                      read more
                     </button>
-                    <button
-                      onClick={() => handleReply(dropId)}
-                      className="text-xs bg-white text-black px-4 py-2 rounded-xl font-black"
-                    >
-                      Reply
-                    </button>
+                  )}
+                </div>
+
+                <div className="mt-4 border-t border-white/10 pt-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-4 items-center">
+                      {/* Like button */}
+                      <button
+                        onClick={(e) => handleVote(dropId, 'likes', e)}
+                        className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                      >
+                        <Heart size={12} fill={hasLiked ? "currentColor" : "none"} /> {drop.likes.length}
+                      </button>
+
+                      {/* Dislike button */}
+                      <button
+                        onClick={(e) => handleVote(dropId, 'dislikes', e)}
+                        className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                      >
+                        <ThumbsDown size={12} fill={hasDisliked ? "currentColor" : "none"} /> {drop.dislikes.length}
+                      </button>
+
+                      {/* Subdrop count */}
+                      {replyCount > 0 && (
+                        <span className="flex items-center gap-1 text-[10px] font-black text-white/30">
+                          <MessageCircle size={11} />
+                          {replyCount} subdrop{replyCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    <span className="text-[8px] font-black uppercase text-white/30">
+                      {formatTime(drop.createdAt)}
+                    </span>
                   </div>
                 </div>
-              )}
-
-            </div>
-          );
-        })}
-      </div>
-
-      <button
-        onClick={() => setShowModal(true)}
-        className="fixed bottom-10 left-1/2 -translate-x-1/2 w-16 h-16 bg-black rounded-full flex items-center justify-center shadow-2xl z-50 transition-transform active:scale-90 hover:scale-105 border-2 border-white/20"
-      >
-        <Plus color="white" size={32} />
-      </button>
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-[2.5rem] p-8 border-2 border-black shadow-2xl animate-in slide-in-from-bottom-10 duration-300">
-            <div className="flex justify-between mb-6">
-              <h2 className="text-xl font-black uppercase italic tracking-tighter">New Drop</h2>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:rotate-90 transition-transform"><X /></button>
-            </div>
-            <input
-              className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111] transition-colors"
-              placeholder="Display Name..."
-              value={name}
-              onChange={e => setName(e.target.value)}
-            />
-            <textarea
-              maxLength={400}
-              className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-2 h-32 resize-none outline-none placeholder:text-white/30 focus:bg-[#111] transition-colors"
-              placeholder="What's the tea?"
-              value={content}
-              onChange={e => setContent(e.target.value)}
-            />
-            <p className="text-[10px] hover:text-white text-right font-bold">
-              {content.length}/400
-            </p>
-            <div className="flex items-center gap-4 mb-8">
-              <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-white/10 bg-white/5 p-4 rounded-xl cursor-pointer hover:bg-white/10 transition-all">
-                <ImageIcon size={20} className="hover:text-white" />
-                <span className="text-[10px] font-black uppercase hover:text-white">{image ? "Image Selected" : "Add Image (500KB)"}</span>
-                <input type="file" className="hidden" accept="image/*" onChange={handleImage} />
-              </label>
-              {image && <button onClick={() => setImage(null)} className="text-red-500 font-black text-[10px] uppercase underline underline-offset-4">Remove</button>}
-            </div>
-            <button onClick={handleDrop} className="w-full bg-black text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-800 active:scale-95 transition-all shadow-lg">Drop It</button>
-          </div>
+              </div>
+            );
+          })}
         </div>
-      )}
-    </main>
+
+        {/* FAB */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
+          className="fixed bottom-10 left-1/2 -translate-x-1/2 w-16 h-16 bg-black rounded-full flex items-center justify-center shadow-2xl z-50 transition-transform active:scale-90 hover:scale-105 border-2 border-white/20"
+        >
+          <Plus color="white" size={32} />
+        </button>
+
+        {/* NEW DROP MODAL */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-[2.5rem] p-8 border-2 border-black shadow-2xl animate-in slide-in-from-bottom-10 duration-300 bg-[#0a0a0a]">
+              <div className="flex justify-between mb-6">
+                <h2 className="text-xl font-black uppercase italic tracking-tighter">New Drop</h2>
+                <button onClick={() => setShowModal(false)} className="p-1 hover:rotate-90 transition-transform"><X /></button>
+              </div>
+              <input
+                className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111] transition-colors"
+                placeholder="Display Name..."
+                value={name}
+                onChange={e => setName(e.target.value)}
+              />
+              <textarea
+                maxLength={400}
+                className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-2 h-32 resize-none outline-none placeholder:text-white/30 focus:bg-[#111] transition-colors"
+                placeholder="What's the tea?"
+                value={content}
+                onChange={e => setContent(e.target.value)}
+              />
+              <p className="text-[10px] hover:text-white text-right font-bold mb-2">
+                {content.length}/400
+              </p>
+              <div className="flex items-center gap-4 mb-8">
+                <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-white/10 bg-white/5 p-4 rounded-xl cursor-pointer hover:bg-white/10 transition-all">
+                  <ImageIcon size={20} className="hover:text-white" />
+                  <span className="text-[10px] font-black uppercase hover:text-white">{image ? "Image Selected" : "Add Image (500KB)"}</span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleImage} />
+                </label>
+                {image && <button onClick={() => setImage(null)} className="text-red-500 font-black text-[10px] uppercase underline underline-offset-4">Remove</button>}
+              </div>
+              <button onClick={handleDrop} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all shadow-lg">Drop It</button>
+            </div>
+          </div>
+        )}
+
+      </main>
     </AppGuard>
   );
 }
