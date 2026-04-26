@@ -39,11 +39,11 @@ export default function RoomPage() {
     if (diff < 300) return "5 mins ago";
     if (diff < 600) return "10 mins ago";
     if (diff < 1800) return "30 mins ago";
-    if (diff < 3600) return "1 hour ago";
-    if (diff < 7200) return "2 hours ago";
-    if (diff < 18000) return "5 hours ago";
-    if (diff < 36000) return "10 hours ago";
-    if (diff < 72000) return "20 hours ago";
+    if (diff < 3600) return "1 hr ago";
+    if (diff < 7200) return "2 hrs ago";
+    if (diff < 18000) return "5 hrs ago";
+    if (diff < 36000) return "10 hrs ago";
+    if (diff < 72000) return "20 hrs ago";
     if (diff < 86400) return "1 day ago";
     if (diff < 172800) return "2 days ago";
     if (diff < 259200) return "3 days ago";
