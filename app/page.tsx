@@ -4,6 +4,7 @@ import { Search, Flame, Plus, X, Copy, Check, Bookmark, ArrowLeft } from 'lucide
 import RoomTile from '@/components/RoomTile';
 import IntroScreen from "@/components/IntroScreen";
 import WarningModal from "@/components/WarningModal";
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Home() {
   const [showIntro, setShowIntro] = useState(false); // Start as false to prevent flicker
@@ -20,6 +21,7 @@ const [agreed, setAgreed] = useState(false);
   // Search States
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
   
   // Modal States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -160,16 +162,44 @@ return(
       </div>
 
       {/* SAVED PAGE: AVATAR SECTION */}
+      {/* --- WRAPPER FOR SWIPEABLE CONTENT --- */}
+<div className="relative flex-1">
+  <AnimatePresence mode="wait">
+    <motion.div
+      key={tab}
+      initial={{ x: tab === 'saved' ? 50 : -50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: tab === 'saved' ? -50 : 50, opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      
+      // DRAG LOGIC
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      onDragEnd={(e, { offset, velocity }) => {
+        const swipe = offset.x;
+        // If swipe right (> 50px) and on Saved -> go to Browse
+        if (swipe > 50 && tab === 'saved') {
+          setTab('browse');
+        } 
+        // If swipe left (< -50px) and on Browse -> go to Saved
+        else if (swipe < -50 && tab === 'browse') {
+          setTab('saved');
+        }
+      }}
+      className="min-h-[500px] touch-pan-y" // touch-pan-y allows normal scrolling
+    >
+      
+      {/* 1. SAVED TAB CONTENT */}
       {tab === 'saved' && (
         <div className="mt-8 px-6 flex flex-col items-center">
           <div onClick={() => setShowAvatarModal(true)} className="w-24 h-24 rounded-full border-4 border-green-500 p-1 cursor-pointer hover:scale-105 transition-transform">
-            <img src={`/avatars/${avatarIndex}.png`} className="w-full h-full rounded-full object-cover" />
+            <img src={`/avatars/${avatarIndex}.png`} className="w-full h-full rounded-full object-cover" alt="Avatar" />
           </div>
           <button onClick={() => setShowAvatarModal(true)} className="mt-3 text-[10px] font-black uppercase text-white/40 tracking-widest">Edit Bitmoji</button>
         </div>
       )}
 
-      {/* BROWSE PAGE: LEFT-ALIGNED CONTROLS */}
+      {/* 2. BROWSE TAB CONTROLS */}
       {tab === 'browse' && (
         <div className="px-6 mt-8 flex items-center justify-start gap-2">
           <button className="flex items-center gap-1 border-2 border-black bg-black text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">
@@ -188,61 +218,36 @@ return(
         </div>
       )}
 
-      {/* GRID */}
-      {filtered.length === 0 ? (
-  // 🧠 LOADING SKELETON (matches your UI vibe)
-  <div className="px-6 mt-8 grid grid-cols-2 gap-6">
-    {[...Array(6)].map((_, i) => (
-      <div
-        key={i}
-        className="aspect-square rounded-[2.5rem] bg-white/5 border border-white/10 animate-pulse"
-      >
-        <div className="p-5 flex flex-col justify-between h-full">
-          
-          {/* Fake title */}
-          <div className="h-4 w-3/4 bg-white/10 rounded"></div>
-
-          {/* Fake bottom section */}
-          <div className="flex justify-between items-end">
-            <div>
-              <div className="h-2 w-12 bg-white/10 rounded mb-2"></div>
-              <div className="h-2 w-16 bg-white/10 rounded"></div>
-            </div>
-
-            <div className="w-8 h-8 rounded-full bg-white/10"></div>
-          </div>
-
-        </div>
+      {/* 3. THE COMMON GRID (Handles both Browse and Saved) */}
+      <div className="px-6 mt-8 grid grid-cols-2 gap-6 pb-20">
+        {filtered.length === 0 ? (
+          // SKELETON LOADER
+          [...Array(6)].map((_, i) => (
+            <div key={i} className="aspect-square rounded-[2.5rem] bg-white/5 border border-white/10 animate-pulse" />
+          ))
+        ) : (
+          // ACTUAL ROOMS
+          filtered.map((room: any) => {
+            const lastSeen = lastSeenMap[room._id] || 0;
+            const hasNew = new Date(room.lastDropAt).getTime() > lastSeen;
+            return (
+              <div key={room._id} className="relative">
+                {tab === 'saved' && hasNew && <div className="dot-badge">!</div>}
+                <RoomTile 
+                  room={room} 
+                  isSaved={savedIds.includes(room._id)} 
+                  onSave={() => toggleSave(room._id)} 
+                  onOpen={() => markRoomSeen(room._id)}
+                />
+              </div>
+            );
+          })
+        )}
       </div>
-    ))}
-  </div>
-) : (
-  // ✅ REAL GRID
-  <div className="px-6 mt-8 grid grid-cols-2 gap-6">
-    {filtered.map((room: any) => {
 
-      const lastSeen = lastSeenMap[room._id] || 0;
-      const hasNew = new Date(room.lastDropAt).getTime() > lastSeen;
-
-      return (
-        <div key={room._id} className="relative">
-
-          {tab === 'saved' && hasNew && (
-            <div className="dot-badge">!</div>
-          )}
-
-          <RoomTile 
-            room={room} 
-            isSaved={savedIds.includes(room._id)} 
-            onSave={() => toggleSave(room._id)} 
-            onOpen={() => markRoomSeen(room._id)}
-          />
-
-        </div>
-      );
-    })}
-  </div>
-)}
+    </motion.div>
+  </AnimatePresence>
+</div>
 
       {/* FLOATING ADD BUTTON */}
       <button onClick={() => setShowAddModal(true)} className="fixed bottom-8 right-8 w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-2xl z-50">
