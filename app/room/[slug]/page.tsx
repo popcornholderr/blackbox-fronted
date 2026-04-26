@@ -243,39 +243,44 @@ export default function RoomPage() {
                   )}
                 </div>
 
-                <div className="mt-4 border-t border-white/10 pt-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-4 items-center">
-                      {/* Like button */}
-                      <button
-                        onClick={(e) => handleVote(dropId, 'likes', e)}
-                        className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                      >
-                        <Heart size={12} fill={hasLiked ? "currentColor" : "none"} /> {drop.likes.length}
-                      </button>
+                {/* --- UPDATED BOTTOM SECTION --- */}
+<div className="mt-4 border-t border-white/10 pt-3 flex flex-col gap-2">
+  
+  {/* ROW 1: VOTES & TIME */}
+  <div className="flex items-center justify-between">
+    <div className="flex gap-4 items-center">
+      {/* Like button */}
+      <button
+        onClick={(e) => handleVote(dropId, 'likes', e)}
+        className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'text-white/40 hover:text-white'}`}
+      >
+        <Heart size={12} fill={hasLiked ? "currentColor" : "none"} /> {drop.likes.length}
+      </button>
 
-                      {/* Dislike button */}
-                      <button
-                        onClick={(e) => handleVote(dropId, 'dislikes', e)}
-                        className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                      >
-                        <ThumbsDown size={12} fill={hasDisliked ? "currentColor" : "none"} /> {drop.dislikes.length}
-                      </button>
+      {/* Dislike button */}
+      <button
+        onClick={(e) => handleVote(dropId, 'dislikes', e)}
+        className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}
+      >
+        <ThumbsDown size={12} fill={hasDisliked ? "currentColor" : "none"} /> {drop.dislikes.length}
+      </button>
+    </div>
 
-                      {/* Subdrop count */}
-                      {replyCount > 0 && (
-                        <span className="flex items-center gap-1 text-[10px] font-black text-white/30">
-                          <MessageCircle size={11} />
-                          {replyCount} subdrop{replyCount !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
+    {/* Time stamp stays on the right of the top row */}
+    <span className="text-[8px] font-black uppercase text-white/30">
+      {formatTime(drop.createdAt)}
+    </span>
+  </div>
 
-                    <span className="text-[8px] font-black uppercase text-white/30">
-                      {formatTime(drop.createdAt)}
-                    </span>
-                  </div>
-                </div>
+  {/* ROW 2: SUBDROPS (Now Below) */}
+  {replyCount > 0 && (
+    <div className="flex items-center gap-1 text-[10px] font-black text-white/30">
+      <MessageCircle size={11} />
+      <span>{replyCount} subdrop{replyCount !== 1 ? 's' : ''}</span>
+    </div>
+  )}
+
+</div>
               </div>
             );
           })}
