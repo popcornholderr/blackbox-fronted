@@ -30,19 +30,9 @@ body {
 }
 
 /* --- TEXT CLAMPING & TRUNCATION --- */
-.truncate-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
 
-.line-clamp-6 {
-  display: -webkit-box;
-  -webkit-line-clamp: 6;
-  -webkit-box-orient: vertical;  
-  overflow: hidden;
-}
+
+
 
 .clamp-none {
   -webkit-line-clamp: unset !important;
