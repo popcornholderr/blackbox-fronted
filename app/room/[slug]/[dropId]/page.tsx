@@ -290,12 +290,11 @@ export default function DropDetailPage() {
               </p>
 
               <button
-                onClick={handleReply}
-                className="w-full text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] active:scale-95 transition-all shadow-lg"
-                style={{ backgroundColor: room.color || 'white' }}
-              >
-                Drop Reply
-              </button>
+  onClick={handleReply}
+  className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] active:scale-95 transition-all shadow-lg hover:bg-gray-100"
+>
+  Drop Reply
+</button>
             </div>
           </div>
         )}
