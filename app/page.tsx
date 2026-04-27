@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Search, Flame, Plus, X, Copy, Check, Bookmark, ArrowLeft } from 'lucide-react';
+import { Search, Flame, Plus, X, Copy, Check, Bookmark, ArrowLeft, User, ExternalLink, ShieldCheck } from 'lucide-react';
+import { FaInstagram, FaLinkedin } from 'react-icons/fa';
 import RoomTile from '@/components/RoomTile';
 import IntroScreen from "@/components/IntroScreen";
 import WarningModal from "@/components/WarningModal";
@@ -15,6 +16,7 @@ const [agreed, setAgreed] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [avatarIndex, setAvatarIndex] = useState(0);
   const [lastSeenMap, setLastSeenMap] = useState<any>({});
+  const [showMeModal, setShowMeModal] = useState(false);
 
   const [introType, setIntroType] = useState<'full' | 'back' | 'none'>('none');
   
@@ -200,23 +202,33 @@ return(
       )}
 
       {/* 2. BROWSE TAB CONTROLS */}
-      {tab === 'browse' && (
-        <div className="px-6 mt-8 flex items-center justify-start gap-2">
-          <button className="flex items-center gap-1 border-2 border-black bg-black text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">
-            <Flame size={12} fill="white" /> Trending
-          </button>
-          <div className={`flex items-center transition-all duration-500 overflow-hidden ${searchOpen ? 'flex-1 border-b-2 border-black' : 'w-11'}`}>
-            <button onClick={() => setSearchOpen(!searchOpen)} className="p-2 border-2 border-black rounded-xl shrink-0">
-              <Search size={16} />
-            </button>
-            <input 
-              className="flex-1 px-2 outline-none text-sm bg-transparent text-white placeholder:text-white/30" 
-              placeholder="Search rooms..." 
-              onChange={e => setSearchQuery(e.target.value)} 
-            />
-          </div>
-        </div>
-      )}
+{tab === 'browse' && (
+  <div className="px-6 mt-8 flex items-center justify-between gap-2"> {/* Changed justify-start to justify-between */}
+    <div className="flex items-center gap-2 flex-1">
+      <button className="flex items-center gap-1 border-2 border-black bg-black text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">
+        <Flame size={12} fill="white" /> Trending
+      </button>
+      <div className={`flex items-center transition-all duration-500 overflow-hidden ${searchOpen ? 'flex-1 border-b-2 border-black' : 'w-11'}`}>
+        <button onClick={() => setSearchOpen(!searchOpen)} className="p-2 border-2 border-black rounded-xl shrink-0">
+          <Search size={16} />
+        </button>
+        <input 
+          className="flex-1 px-2 outline-none text-sm bg-transparent text-white placeholder:text-white/30" 
+          placeholder="Search rooms..." 
+          onChange={e => setSearchQuery(e.target.value)} 
+        />
+      </div>
+    </div>
+    
+    {/* DEVELOPER PROFILE TRIGGER */}
+    <button 
+      onClick={() => setShowMeModal(true)}
+      className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+    >
+      <User size={18} className="text-green-500" />
+    </button>
+  </div>
+)}
 
       {/* 3. THE COMMON GRID (Handles both Browse and Saved) */}
       <div className="px-6 mt-8 grid grid-cols-2 gap-6 pb-20">
@@ -242,7 +254,7 @@ return(
               </div>
             );
           })
-        )}
+        )}  
       </div>
 
     </motion.div>
@@ -319,6 +331,129 @@ return(
           </div>
         </div>
       )}
+      {/* MODAL: DEVELOPER PROFILE (DAKSH VASANI) */}
+<AnimatePresence>
+  {showMeModal && (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[150] flex items-center justify-center p-6">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="bg-[#0a0a0a] border border-white/10 w-full max-w-sm rounded-[3rem] overflow-hidden relative shadow-[0_0_50px_rgba(34,197,94,0.15)]"
+      >
+        {/* Close Button */}
+        <button 
+          onClick={() => setShowMeModal(false)}
+          className="absolute top-6 right-6 z-10 p-2 bg-black/50 rounded-full text-white/50 hover:text-white transition-colors"
+        >
+          <X size={20} />
+        </button>
+
+        {/* Content Wrapper */}
+        <div className="flex flex-col items-center text-center p-8">
+          
+          {/* PHOTO SECTION */}
+          <motion.div 
+            initial={{ rotate: -10, scale: 0.5 }}
+            animate={{ rotate: 0, scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring' }}
+            className="relative w-32 h-32 mb-6"
+          >
+            <div className="absolute inset-0 bg-green-500 rounded-[2.5rem] blur-2xl opacity-20 animate-pulse"></div>
+            <img 
+              src="/me.jpeg" 
+              alt="Daksh Vasani" 
+              className="w-full h-full object-cover rounded-[2.5rem] border-2 border-green-500 relative z-10" 
+            />
+          </motion.div>
+
+          {/* NAME & BIO */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <h2 className="text-3xl font-black tracking-tighter uppercase italic text-white mb-1">Daksh Vasani</h2>
+            <p className="text-[10px] font-bold text-green-500 uppercase tracking-[0.3em] mb-6">Founder & Architect</p>
+          </motion.div>
+
+          {/* MISSION / ACHIEVEMENTS SECTION */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="space-y-4 mb-8"
+          >
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-start gap-3 text-left">
+              <ShieldCheck className="text-green-500 shrink-0" size={20} />
+              <div>
+                <p className="text-[11px] font-black uppercase text-white/90 leading-tight">Anonymous & Safe</p>
+                <p className="text-[9px] text-white/40 mt-1 leading-relaxed">Built to let students voice out without fear. Our AI filters block toxicity in real-time before it hits the feed.</p>
+              </div>
+            </div>
+
+            <motion.div
+  initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
+  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+  transition={{ delay: 0.4, type: "spring", stiffness: 120 }}
+  className="relative w-full h-40 rounded-3xl overflow-hidden border border-white/10"
+>
+  {/* Glow background */}
+  <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 via-purple-500/20 to-pink-500/20 blur-2xl animate-pulse"></div>
+
+  {/* Image */}
+  <motion.img
+    src="/censor.png" // <-- your uploaded image (put it in public folder)
+    alt="Censorship Visual"
+    className="w-full h-full object-cover relative z-10"
+    whileHover={{ scale: 1.08 }}
+    transition={{ duration: 0.4 }}
+  />
+
+  {/* Overlay effect */}
+  <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] z-20"></div>
+
+  {/* Text overlay */}
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.6 }}
+    className="absolute bottom-3 left-4 z-30"
+  >
+    <p className="text-[10px] font-black uppercase text-white/80 tracking-widest">
+      AI MODERATION ACTIVE
+    </p>
+    <p className="text-[8px] text-white/40">
+      Real-time censorship engine
+    </p>
+  </motion.div>
+</motion.div>
+          </motion.div>
+
+          {/* SOCIAL LINKS */}
+          <div className="flex gap-3 w-full">
+            <motion.a 
+              whileHover={{ y: -4 }}
+              href="https://www.linkedin.com/in/daksh-vasani/" target="_blank"
+              className="flex-1 flex items-center justify-center gap-2 p-4 bg-[#0077b5]/10 border border-[#0077b5]/20 rounded-2xl text-[#0077b5]"
+            >
+              <FaLinkedin size={18} />
+            </motion.a>
+            <motion.a 
+              whileHover={{ y: -4 }}
+              href="https://www.instagram.com/wasitreallydaksh" target="_blank"
+              className="flex-1 flex items-center justify-center gap-2 p-4 bg-pink-500/10 border border-pink-500/20 rounded-2xl text-pink-500"
+            >
+              <FaInstagram size={18} />
+            </motion.a>
+          </div>
+
+          <p className="mt-8 text-[8px] font-black text-white/20 uppercase tracking-widest">© 2026 Black Box Protocol</p>
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
     </main>
     </>
 );
