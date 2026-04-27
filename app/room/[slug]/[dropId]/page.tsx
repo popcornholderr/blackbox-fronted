@@ -14,6 +14,7 @@ import AppGuard from '@/components/AppGuard';
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function DropDetailPage() {
+  const [replyError, setReplyError] = useState<string | null>(null);
   const { slug, dropId } = useParams();
   const router = useRouter();
 
@@ -76,34 +77,34 @@ export default function DropDetailPage() {
 
   const handleReply = async () => {
     if (!replyContent.trim()) return;
+    setReplyError(null);
+
     const apiUrl = BASE_URL.replace(/\/$/, "");
-    try {
-      const res = await fetch(`${apiUrl}/api/drops/${String(dropId).trim()}/reply`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({
-          content: replyContent,
-          tempName: replyName || "Anonymous",
-          avatarIndex: parseInt(localStorage.getItem('avatarIndex') || "0")
-        })
-      });
+    const res = await fetch(`${apiUrl}/api/drops/${String(dropId).trim()}/reply`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        content: replyContent,
+        tempName: replyName || "Anonymous",
+        avatarIndex: parseInt(localStorage.getItem('avatarIndex') || "0")
+      })
+    });
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Reply failed:", text.slice(0, 100));
-        return;
-      }
-
-      setReplyContent("");
-      setReplyName("");
-      setShowReplyModal(false);
-      fetchData();
-    } catch (err) {
-      console.error("Network Error:", err);
+    // ✅ Single clean error check — reads actual error message from API
+    if (!res.ok) {
+      const result = await res.json();
+      setReplyError(result.error || "Something went wrong.");
+      setTimeout(() => setReplyError(null), 3000);
+      return;
     }
+
+    setReplyContent("");
+    setReplyName("");
+    setShowReplyModal(false);
+    fetchData();
   };
 
   if (!room || !drop) return (
@@ -142,7 +143,7 @@ export default function DropDetailPage() {
           </div>
         </header>
 
-        {/* MAIN DROP — full width, prominent */}
+        {/* MAIN DROP */}
         <div className="px-4 pt-6 pb-4">
           <div
             className="w-full rounded-[2rem] p-6 border border-white/10 bg-[#0a0a0a] shadow-[0_8px_40px_rgba(0,0,0,0.8)]"
@@ -151,7 +152,6 @@ export default function DropDetailPage() {
               borderLeft: `4px solid ${room.color}60`
             }}
           >
-            {/* Author row */}
             <div className="flex items-center gap-3 mb-4">
               <img
                 src={`/avatars/${drop.avatarIndex}.png`}
@@ -165,7 +165,6 @@ export default function DropDetailPage() {
               </div>
             </div>
 
-            {/* Image if any */}
             {drop.image && (
               <img
                 src={drop.image}
@@ -174,12 +173,10 @@ export default function DropDetailPage() {
               />
             )}
 
-            {/* Full content — no truncation */}
             <p className="text-base font-medium leading-relaxed text-white/90 whitespace-pre-wrap">
               {drop.content}
             </p>
 
-            {/* Votes */}
             <div className="mt-6 pt-4 border-t border-white/10 flex items-center gap-6">
               <button
                 onClick={() => handleVote('likes')}
@@ -202,7 +199,7 @@ export default function DropDetailPage() {
           </div>
         </div>
 
-        {/* SUBDROPS SECTION */}
+        {/* SUBDROPS */}
         {replies.length > 0 && (
           <div className="px-4 mt-2">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 pl-1">
@@ -221,14 +218,12 @@ export default function DropDetailPage() {
                     alt="Avatar"
                   />
                   <div
-                    className="flex-1 p-4 rounded-2xl rounded-tl-none border border-white/8 bg-white/[0.03]"
+                    className="flex-1 p-4 rounded-2xl rounded-tl-none border border-white/[0.08] bg-white/[0.03]"
                     style={{ borderLeftColor: `${room.color}30`, borderLeftWidth: '2px' }}
                   >
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-[10px] font-black uppercase text-white/40 tracking-widest">
-                        {reply.tempName || "Anonymous"}
-                      </span>
-                    </div>
+                    <span className="text-[10px] font-black uppercase text-white/40 tracking-widest block mb-1.5">
+                      {reply.tempName || "Anonymous"}
+                    </span>
                     <p className="text-sm text-white/80 leading-relaxed font-medium whitespace-pre-wrap">
                       {reply.content}
                     </p>
@@ -263,7 +258,7 @@ export default function DropDetailPage() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-black uppercase italic tracking-tighter">Reply</h2>
                 <button
-                  onClick={() => { setShowReplyModal(false); setReplyContent(""); setReplyName(""); }}
+                  onClick={() => { setShowReplyModal(false); setReplyContent(""); setReplyName(""); setReplyError(null); }}
                   className="p-1 hover:rotate-90 transition-transform text-white/60 hover:text-white"
                 >
                   <X size={20} />
@@ -280,21 +275,25 @@ export default function DropDetailPage() {
               <textarea
                 maxLength={400}
                 value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
+                onChange={(e) => { setReplyContent(e.target.value); setReplyError(null); }}
+                className={`w-full p-4 rounded-xl bg-black border text-white text-sm outline-none resize-none h-28 transition-all duration-300
+                  ${replyError ? 'border-red-600 animate-shake shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'border-white/10 focus:bg-[#111]'}`}
                 placeholder="What's the tea?"
-                className="w-full p-4 rounded-xl bg-black border border-white/10 text-white text-sm outline-none resize-none h-28 placeholder:text-white/30 focus:bg-[#111] transition-colors"
               />
+              {replyError && (
+                <p className="text-red-500 text-[10px] font-black uppercase mt-1 animate-pulse">{replyError}</p>
+              )}
 
               <p className="text-[10px] text-right mt-1 text-white/30 font-bold mb-6">
                 {replyContent.length}/400
               </p>
 
               <button
-  onClick={handleReply}
-  className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] active:scale-95 transition-all shadow-lg hover:bg-gray-100"
->
-  Drop Reply
-</button>
+                onClick={handleReply}
+                className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] active:scale-95 transition-all shadow-lg hover:bg-gray-100"
+              >
+                Drop Reply
+              </button>
             </div>
           </div>
         )}
