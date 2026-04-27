@@ -30,6 +30,7 @@ export default function RoomPage() {
   const [image, setImage] = useState<string | null>(null);
 
   const [seenDrops, setSeenDrops] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const formatTime = (dateString: string) => {
     const now = new Date();
@@ -88,7 +89,7 @@ export default function RoomPage() {
   }, [data, slug]);
 
   const handleVote = async (dropId: string, type: 'likes' | 'dislikes', e: React.MouseEvent) => {
-    e.stopPropagation(); // prevent card click
+    e.stopPropagation();
     const userId = localStorage.getItem('avatarIndex') || 'anon-' + Math.random();
     try {
       await fetch(`${BASE_URL}/api/drops/${dropId}/vote`, {
@@ -127,8 +128,10 @@ export default function RoomPage() {
 
   const handleDrop = async () => {
     if (!content && !image) return alert("Write something or add a photo!");
+    setError(null);
+
     const av = localStorage.getItem('avatarIndex') || '0';
-    await fetch(`${BASE_URL}/api/drops`, {
+    const res = await fetch(`${BASE_URL}/api/drops`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -136,18 +139,24 @@ export default function RoomPage() {
         content,
         image,
         tempName: name || "Anonymous",
-        avatarIndex: parseInt(av),
-        likes: [],
-        dislikes: []
+        avatarIndex: parseInt(av)
       })
     });
+
+    // ✅ Single clean error check — reads actual message from API
+    if (!res.ok) {
+      const result = await res.json();
+      setError(result.error || "Something went wrong.");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
     setShowModal(false);
     setContent(""); setName(""); setImage(null);
     fetchRoom();
   };
 
   const navigateToDrop = (dropId: string) => {
-    // Mark as seen when navigating
     const currentSeen = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
     if (!currentSeen.includes(dropId)) {
       localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...currentSeen, dropId]));
@@ -204,7 +213,6 @@ export default function RoomPage() {
             const isNew = !seenDrops.includes(dropId);
             const replyCount = (drop.replies || []).length;
 
-            // 50 character truncation
             const isLong = drop.content.length > 50;
             const displayText = isLong ? drop.content.slice(0, 50) + "…" : drop.content;
 
@@ -216,7 +224,7 @@ export default function RoomPage() {
                 style={getDropStyle(idx)}
               >
                 {isNew && (
-                  <div className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                  <div className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full" />
                 )}
 
                 <div className="flex items-center gap-2 mb-3">
@@ -243,44 +251,38 @@ export default function RoomPage() {
                   )}
                 </div>
 
-                {/* --- UPDATED BOTTOM SECTION --- */}
-<div className="mt-4 border-t border-white/10 pt-3 flex flex-col gap-2">
-  
-  {/* ROW 1: VOTES & TIME */}
-  <div className="flex items-center justify-between">
-    <div className="flex gap-4 items-center">
-      {/* Like button */}
-      <button
-        onClick={(e) => handleVote(dropId, 'likes', e)}
-        className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'text-white/40 hover:text-white'}`}
-      >
-        <Heart size={12} fill={hasLiked ? "currentColor" : "none"} /> {drop.likes.length}
-      </button>
+                <div className="mt-4 border-t border-white/10 pt-3 flex flex-col gap-2">
 
-      {/* Dislike button */}
-      <button
-        onClick={(e) => handleVote(dropId, 'dislikes', e)}
-        className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}
-      >
-        <ThumbsDown size={12} fill={hasDisliked ? "currentColor" : "none"} /> {drop.dislikes.length}
-      </button>
-    </div>
+                  {/* ROW 1: VOTES & TIME */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-4 items-center">
+                      <button
+                        onClick={(e) => handleVote(dropId, 'likes', e)}
+                        className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                      >
+                        <Heart size={12} fill={hasLiked ? "currentColor" : "none"} /> {drop.likes.length}
+                      </button>
+                      <button
+                        onClick={(e) => handleVote(dropId, 'dislikes', e)}
+                        className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                      >
+                        <ThumbsDown size={12} fill={hasDisliked ? "currentColor" : "none"} /> {drop.dislikes.length}
+                      </button>
+                    </div>
+                    <span className="text-[8px] font-black uppercase text-white/30">
+                      {formatTime(drop.createdAt)}
+                    </span>
+                  </div>
 
-    {/* Time stamp stays on the right of the top row */}
-    <span className="text-[8px] font-black uppercase text-white/30">
-      {formatTime(drop.createdAt)}
-    </span>
-  </div>
+                  {/* ROW 2: SUBDROP COUNT */}
+                  {replyCount > 0 && (
+                    <div className="flex items-center gap-1 text-[10px] font-black text-white/30">
+                      <MessageCircle size={11} />
+                      <span>{replyCount} subdrop{replyCount !== 1 ? 's' : ''}</span>
+                    </div>
+                  )}
 
-  {/* ROW 2: SUBDROPS (Now Below) */}
-  {replyCount > 0 && (
-    <div className="flex items-center gap-1 text-[10px] font-black text-white/30">
-      <MessageCircle size={11} />
-      <span>{replyCount} subdrop{replyCount !== 1 ? 's' : ''}</span>
-    </div>
-  )}
-
-</div>
+                </div>
               </div>
             );
           })}
@@ -300,7 +302,7 @@ export default function RoomPage() {
             <div className="w-full max-w-md rounded-[2.5rem] p-8 border-2 border-black shadow-2xl animate-in slide-in-from-bottom-10 duration-300 bg-[#0a0a0a]">
               <div className="flex justify-between mb-6">
                 <h2 className="text-xl font-black uppercase italic tracking-tighter">New Drop</h2>
-                <button onClick={() => setShowModal(false)} className="p-1 hover:rotate-90 transition-transform"><X /></button>
+                <button onClick={() => { setShowModal(false); setError(null); }} className="p-1 hover:rotate-90 transition-transform"><X /></button>
               </div>
               <input
                 className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111] transition-colors"
@@ -310,23 +312,31 @@ export default function RoomPage() {
               />
               <textarea
                 maxLength={400}
-                className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-2 h-32 resize-none outline-none placeholder:text-white/30 focus:bg-[#111] transition-colors"
+                className={`w-full border p-4 rounded-xl mb-2 h-32 resize-none outline-none transition-all duration-300 bg-black text-white
+                  ${error ? 'border-red-600 animate-shake shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'border-white/10 focus:bg-[#111]'}`}
                 placeholder="What's the tea?"
                 value={content}
-                onChange={e => setContent(e.target.value)}
+                onChange={e => { setContent(e.target.value); setError(null); }}
               />
+              {error && (
+                <p className="text-red-500 text-[10px] font-black uppercase mb-2 animate-pulse">{error}</p>
+              )}
               <p className="text-[10px] hover:text-white text-right font-bold mb-2">
                 {content.length}/400
               </p>
               <div className="flex items-center gap-4 mb-8">
                 <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-white/10 bg-white/5 p-4 rounded-xl cursor-pointer hover:bg-white/10 transition-all">
-                  <ImageIcon size={20} className="hover:text-white" />
-                  <span className="text-[10px] font-black uppercase hover:text-white">{image ? "Image Selected" : "Add Image (500KB)"}</span>
+                  <ImageIcon size={20} />
+                  <span className="text-[10px] font-black uppercase">{image ? "Image Selected" : "Add Image (500KB)"}</span>
                   <input type="file" className="hidden" accept="image/*" onChange={handleImage} />
                 </label>
-                {image && <button onClick={() => setImage(null)} className="text-red-500 font-black text-[10px] uppercase underline underline-offset-4">Remove</button>}
+                {image && (
+                  <button onClick={() => setImage(null)} className="text-red-500 font-black text-[10px] uppercase underline underline-offset-4">Remove</button>
+                )}
               </div>
-              <button onClick={handleDrop} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all shadow-lg">Drop It</button>
+              <button onClick={handleDrop} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all shadow-lg">
+                Drop It
+              </button>
             </div>
           </div>
         )}
