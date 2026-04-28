@@ -1,17 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import {
-  Heart,
-  ThumbsDown,
-  ArrowLeft,
-  MessageSquarePlus,
-  X
-} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Heart, ThumbsDown, ArrowLeft, MessageSquarePlus, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import AppGuard from '@/components/AppGuard';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const POLL_INTERVAL = 3000;
 
 export default function DropDetailPage() {
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -23,6 +18,11 @@ export default function DropDetailPage() {
   const [showReplyModal, setShowReplyModal] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [replyName, setReplyName] = useState("");
+  const [newReplyIndexes, setNewReplyIndexes] = useState<number[]>([]); // indexes of newly arrived replies
+
+  const knownReplyCountRef = useRef<number>(0);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const repliesEndRef = useRef<HTMLDivElement | null>(null);
 
   const formatTime = (dateString: string) => {
     const now = new Date();
@@ -47,19 +47,56 @@ export default function DropDetailPage() {
     return past.toLocaleDateString();
   };
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${slug}`);
       const data = await res.json();
-      setRoom(data.room);
       const foundDrop = data.drops.find((d: any) => String(d._id).trim() === String(dropId).trim());
-      if (foundDrop) setDrop(foundDrop);
+
+      if (!foundDrop) return;
+
+      const replies = foundDrop.replies || [];
+
+      if (!silent) {
+        // First load
+        knownReplyCountRef.current = replies.length;
+        setRoom(data.room);
+        setDrop(foundDrop);
+        return;
+      }
+
+      // Poll — detect new replies at the end
+      const prevCount = knownReplyCountRef.current;
+      const newCount = replies.length;
+
+      if (newCount > prevCount) {
+        const newIndexes = Array.from({ length: newCount - prevCount }, (_, i) => prevCount + i);
+        setNewReplyIndexes(newIndexes);
+        knownReplyCountRef.current = newCount;
+
+        // Scroll to bottom smoothly
+        setTimeout(() => {
+          repliesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+
+        // Remove animation after it plays
+        setTimeout(() => setNewReplyIndexes([]), 800);
+      }
+
+      setRoom(data.room);
+      setDrop(foundDrop);
     } catch (err) {
       console.error("Error fetching drop detail:", err);
     }
   };
 
-  useEffect(() => { fetchData(); }, [slug, dropId]);
+  useEffect(() => {
+    fetchData(false);
+    pollRef.current = setInterval(() => fetchData(true), POLL_INTERVAL);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [slug, dropId]);
 
   const handleVote = async (type: 'likes' | 'dislikes') => {
     const userId = localStorage.getItem('avatarIndex') || 'anon-' + Math.random();
@@ -69,7 +106,7 @@ export default function DropDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, type })
       });
-      fetchData();
+      fetchData(true);
     } catch (err) {
       console.error("Vote failed:", err);
     }
@@ -82,10 +119,7 @@ export default function DropDetailPage() {
     const apiUrl = BASE_URL.replace(/\/$/, "");
     const res = await fetch(`${apiUrl}/api/drops/${String(dropId).trim()}/reply`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({
         content: replyContent,
         tempName: replyName || "Anonymous",
@@ -93,7 +127,6 @@ export default function DropDetailPage() {
       })
     });
 
-    // ✅ Single clean error check — reads actual error message from API
     if (!res.ok) {
       const result = await res.json();
       setReplyError(result.error || "Something went wrong.");
@@ -104,7 +137,10 @@ export default function DropDetailPage() {
     setReplyContent("");
     setReplyName("");
     setShowReplyModal(false);
-    fetchData();
+    fetchData(true); // instant refresh after reply
+
+    // Scroll to bottom after reply
+    setTimeout(() => repliesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 200);
   };
 
   if (!room || !drop) return (
@@ -119,24 +155,21 @@ export default function DropDetailPage() {
 
   return (
     <AppGuard>
-      <main
-        className="min-h-screen pb-32 relative"
-        style={{ backgroundColor: `${room.color}05` }}
-      >
+      <main className="min-h-screen pb-32 relative" style={{ backgroundColor: `${room.color}05` }}>
 
         {/* HEADER */}
         <header className="px-6 py-5 bg-black/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 flex items-center gap-4">
           <button
-            onClick={() => router.back()}
+            onClick={() => {
+              if (pollRef.current) clearInterval(pollRef.current);
+              router.back();
+            }}
             className="p-2 border border-white/20 rounded-xl bg-black flex-shrink-0"
           >
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1
-              className="text-lg font-black uppercase italic tracking-tight"
-              style={{ color: room.color }}
-            >
+            <h1 className="text-lg font-black uppercase italic tracking-tight" style={{ color: room.color }}>
               {room.title}
             </h1>
             <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Drop Thread</p>
@@ -147,10 +180,7 @@ export default function DropDetailPage() {
         <div className="px-4 pt-6 pb-4">
           <div
             className="w-full rounded-[2rem] p-6 border border-white/10 bg-[#0a0a0a] shadow-[0_8px_40px_rgba(0,0,0,0.8)]"
-            style={{
-              backgroundColor: `${room.color}15`,
-              borderLeft: `4px solid ${room.color}60`
-            }}
+            style={{ backgroundColor: `${room.color}15`, borderLeft: `4px solid ${room.color}60` }}
           >
             <div className="flex items-center gap-3 mb-4">
               <img
@@ -164,14 +194,6 @@ export default function DropDetailPage() {
                 <p className="text-[9px] font-bold uppercase text-white/30 tracking-widest">{formatTime(drop.createdAt)}</p>
               </div>
             </div>
-
-            {drop.image && (
-              <img
-                src={drop.image}
-                className="rounded-2xl mb-4 w-full border border-black/10 object-cover max-h-80"
-                alt="Drop"
-              />
-            )}
 
             <p className="text-base font-medium leading-relaxed text-white/90 whitespace-pre-wrap">
               {drop.content}
@@ -199,18 +221,26 @@ export default function DropDetailPage() {
           </div>
         </div>
 
-        {/* SUBDROPS */}
-        {replies.length > 0 && (
-          <div className="px-4 mt-2">
+        {/* SUBDROPS — oldest on top, newest at bottom */}
+        <div className="px-4 mt-2">
+          {replies.length > 0 && (
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 pl-1">
               Subdrops
             </p>
-            <div className="space-y-3">
-              {replies.map((reply: any, i: number) => (
+          )}
+
+          <div className="space-y-3">
+            {replies.map((reply: any, i: number) => {
+              const isNewReply = newReplyIndexes.includes(i);
+              return (
                 <div
                   key={i}
-                  className="flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2 duration-300"
-                  style={{ animationDelay: `${i * 50}ms` }}
+                  className={`flex gap-3 items-start transition-all duration-500
+                    ${isNewReply
+                      ? 'opacity-0 translate-y-4 animate-[fadeSlideUp_0.5s_ease_forwards]'
+                      : 'opacity-100'
+                    }`}
+                  style={isNewReply ? { animationDelay: `${(i - (replies.length - newReplyIndexes.length)) * 80}ms` } : {}}
                 >
                   <img
                     src={`/avatars/${reply.avatarIndex ?? 0}.png`}
@@ -229,17 +259,19 @@ export default function DropDetailPage() {
                     </p>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
+            {/* scroll anchor */}
+            <div ref={repliesEndRef} />
           </div>
-        )}
 
-        {replies.length === 0 && (
-          <div className="px-4 mt-4 text-center py-10">
-            <p className="text-[11px] font-black uppercase text-white/20 tracking-widest">No subdrops yet</p>
-            <p className="text-[10px] text-white/10 mt-1">Be the first to reply</p>
-          </div>
-        )}
+          {replies.length === 0 && (
+            <div className="text-center py-10">
+              <p className="text-[11px] font-black uppercase text-white/20 tracking-widest">No subdrops yet</p>
+              <p className="text-[10px] text-white/10 mt-1">Be the first to reply</p>
+            </div>
+          )}
+        </div>
 
         {/* REPLY FAB */}
         <button
