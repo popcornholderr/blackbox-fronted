@@ -213,39 +213,50 @@ export default function Home() {
         </div>
       )}
 
-              {/* BROWSE TAB: CONTROLS */}
-              {tab === 'browse' && (
-        <div className="px-6 mt-8 flex items-center justify-between gap-3 h-12">
-          <div className="flex items-center gap-2 flex-1 h-full">
-            <button className="flex items-center gap-1 border border-white/10 bg-white/5 hover:bg-white/10 text-white px-4 h-full rounded-2xl text-[10px] font-black uppercase shrink-0 transition-all">
-              <Flame size={12} className="text-[#fac9f6]" fill="#fac9f6" /> Trending
-            </button>
-            
-            {/* FANCY SEARCH BAR */}
-            <div className={`group flex items-center h-full transition-all duration-500 ease-out bg-white/5 rounded-2xl border border-white/10 hover:border-[#fac9f6]/50 ${searchOpen ? 'flex-1 ring-1 ring-[#fac9f6]/30' : 'w-12'}`}>
-              <button onClick={() => setSearchOpen(!searchOpen)} className="w-12 flex items-center justify-center shrink-0">
-                <Search size={18} className={`${searchOpen ? 'text-[#fac9f6]' : 'text-white/60'} transition-colors`} />
-              </button>
-              {searchOpen && (
-                <input
-                  autoFocus
-                  className="flex-1 pr-4 outline-none text-sm bg-transparent text-white placeholder:text-white/20 font-medium"
-                  placeholder="Find a vibe..."
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-              )}
-            </div>
-          </div>
+              {/* BROWSE TAB: CONTROLS - Fixed Layout Shift */}
+{tab === 'browse' && (
+  <div className="px-6 mt-8 flex items-center justify-between gap-3 h-12 relative">
+    <div className="flex items-center gap-2 flex-1 h-full">
+      {/* Trending Button - Size remains constant */}
+      <button className="flex items-center gap-1 border border-white/10 bg-white/5 hover:bg-white/10 text-white px-4 h-full rounded-2xl text-[10px] font-black uppercase shrink-0 transition-all">
+        <Flame size={12} className="text-[#fac9f6]" fill="#fac9f6" /> 
+        {!searchOpen && <span>Trending</span>}
+      </button>
+      
+      {/* FANCY SEARCH BAR - Uses flex-grow without breaking layout */}
+      <div className={`flex items-center h-full transition-all duration-500 ease-out bg-white/5 rounded-2xl border border-white/10 hover:border-[#fac9f6]/50 ${searchOpen ? 'flex-1 ring-1 ring-[#fac9f6]/30 bg-white/10' : 'w-12'}`}>
+        <button 
+          onClick={() => setSearchOpen(!searchOpen)} 
+          className="w-12 h-full flex items-center justify-center shrink-0 cursor-pointer"
+        >
+          <Search size={18} className={`${searchOpen ? 'text-[#fac9f6]' : 'text-white/60'} transition-colors`} />
+        </button>
+        
+        <AnimatePresence>
+          {searchOpen && (
+            <motion.input
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: 'auto' }}
+              exit={{ opacity: 0, width: 0 }}
+              autoFocus
+              className="flex-1 pr-4 outline-none text-sm bg-transparent text-white placeholder:text-white/20 font-medium min-w-0"
+              placeholder="Find a vibe..."
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
 
-          {/* PINK USER LOGO */}
-          <button 
-            onClick={() => setShowMeModal(true)} 
-            className="h-full w-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl shrink-0 hover:bg-white/10 transition-all active:scale-90"
-          >
-            <User size={20} style={{ color: '#fac9f6' }} />
-          </button>
-        </div>
-      )}
+    {/* PINK USER LOGO - Positioned to stay put */}
+    <button 
+      onClick={() => setShowMeModal(true)} 
+      className="h-12 w-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl shrink-0 hover:bg-white/10 transition-all active:scale-90"
+    >
+      <User size={20} style={{ color: '#fac9f6' }} />
+    </button>
+  </div>
+)}
 
               {/* ROOM GRID */}
               <div className="px-6 mt-8 grid grid-cols-2 gap-6 pb-20">
