@@ -259,7 +259,7 @@ export default function Home() {
 )}
 
               {/* ROOM GRID */}
-              <div className="px-6 mt-8 grid grid-cols-2 gap-6 pb-20">
+              <div className="px-6 mt-8 grid grid-cols-2 gap-6 pb-20 grid-auto-rows-[1fr]">
                 {filtered.length === 0 ? (
                   [...Array(6)].map((_, i) => (
                     <div key={i} className="aspect-square rounded-[2.5rem] bg-white/5 border border-white/10 animate-pulse" />
