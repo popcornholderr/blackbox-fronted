@@ -1,20 +1,15 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  Heart,
-  ThumbsDown,
-  Copy,
-  Plus,
-  X,
-  ArrowLeft,
-  Check,
-  MessageCircle
+  Heart, ThumbsDown, Copy, Plus, X,
+  ArrowLeft, Check, MessageCircle
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import AppGuard from '@/components/AppGuard';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const POLL_INTERVAL = 3000; // 3 seconds
 
 export default function RoomPage() {
   const { slug } = useParams();
@@ -23,12 +18,14 @@ export default function RoomPage() {
   const [data, setData] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [copied, setCopied] = useState(false);
-
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
-
   const [seenDrops, setSeenDrops] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [newDropIds, setNewDropIds] = useState<string[]>([]); // tracks which drops to animate in
+
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const formatTime = (dateString: string) => {
     const now = new Date();
@@ -53,11 +50,36 @@ export default function RoomPage() {
     return past.toLocaleDateString();
   };
 
-  const fetchRoom = () => {
-    fetch(`${BASE_URL}/api/rooms/${slug}`)
-      .then(res => res.json())
-      .then(setData)
-      .catch(err => console.error("Error fetching room:", err));
+  const fetchRoom = async (silent = false) => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/rooms/${slug}`);
+      const incoming = await res.json();
+
+      if (!silent) {
+        // First load — seed known IDs
+        const ids = incoming.drops.map((d: any) => String(d._id).trim());
+        knownIdsRef.current = new Set(ids);
+        setData(incoming);
+        return;
+      }
+
+      // Poll update — find genuinely new drops
+      const incomingIds = incoming.drops.map((d: any) => String(d._id).trim());
+      const brandNew = incomingIds.filter((id: string) => !knownIdsRef.current.has(id));
+
+      if (brandNew.length > 0) {
+        brandNew.forEach((id: string) => knownIdsRef.current.add(id));
+        setNewDropIds(prev => [...prev, ...brandNew]);
+        // Remove animation class after it plays
+        setTimeout(() => {
+          setNewDropIds(prev => prev.filter(id => !brandNew.includes(id)));
+        }, 800);
+      }
+
+      setData(incoming);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
   };
 
   useEffect(() => {
@@ -65,7 +87,16 @@ export default function RoomPage() {
     setSeenDrops(seen);
   }, [slug]);
 
-  useEffect(() => { fetchRoom(); }, [slug]);
+  useEffect(() => {
+    fetchRoom(false); // initial load
+
+    // Start polling
+    pollRef.current = setInterval(() => fetchRoom(true), POLL_INTERVAL);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [slug]);
 
   useEffect(() => {
     if (!data) return;
@@ -95,7 +126,7 @@ export default function RoomPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, type })
       });
-      fetchRoom();
+      fetchRoom(true);
     } catch (err) {
       console.error("Vote failed:", err);
     }
@@ -145,7 +176,7 @@ export default function RoomPage() {
 
     setShowModal(false);
     setContent(""); setName("");
-    fetchRoom();
+    fetchRoom(true); // instant refresh after posting
   };
 
   const navigateToDrop = (dropId: string) => {
@@ -175,6 +206,7 @@ export default function RoomPage() {
                 .map((d: any) => String(d._id).trim())
                 .filter((id: string) => !currentSeen.includes(id));
               localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...currentSeen, ...newIds]));
+              if (pollRef.current) clearInterval(pollRef.current);
               if (window.history.length <= 2) router.push('/');
               else router.back();
             }}
@@ -204,15 +236,16 @@ export default function RoomPage() {
             const hasDisliked = drop.dislikes.includes(localStorage.getItem('avatarIndex') || 'anon');
             const isNew = !seenDrops.includes(dropId);
             const replyCount = (drop.replies || []).length;
-
             const isLong = drop.content.length > 50;
             const displayText = isLong ? drop.content.slice(0, 50) + "…" : drop.content;
+            const justArrived = newDropIds.includes(dropId);
 
             return (
               <div
                 key={dropId}
                 onClick={() => navigateToDrop(dropId)}
-                className="relative masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col transition-all duration-300 cursor-pointer hover:scale-[1.01] hover:border-white/20 active:scale-[0.98]"
+                className={`relative masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col transition-all duration-300 cursor-pointer hover:scale-[1.01] hover:border-white/20 active:scale-[0.98]
+                  ${justArrived ? 'new-drop-liquid' : ''}`}
                 style={getDropStyle(idx)}
               >
                 {isNew && (
@@ -225,9 +258,7 @@ export default function RoomPage() {
                 </div>
 
                 <div className="flex-1">
-                  <p className="text-sm font-medium leading-relaxed text-white/80">
-                    {displayText}
-                  </p>
+                  <p className="text-sm font-medium leading-relaxed text-white/80">{displayText}</p>
                   {isLong && (
                     <button
                       onClick={(e) => { e.stopPropagation(); navigateToDrop(dropId); }}
@@ -255,9 +286,7 @@ export default function RoomPage() {
                         <ThumbsDown size={12} fill={hasDisliked ? "currentColor" : "none"} /> {drop.dislikes.length}
                       </button>
                     </div>
-                    <span className="text-[8px] font-black uppercase text-white/30">
-                      {formatTime(drop.createdAt)}
-                    </span>
+                    <span className="text-[8px] font-black uppercase text-white/30">{formatTime(drop.createdAt)}</span>
                   </div>
 
                   {replyCount > 0 && (
@@ -302,12 +331,8 @@ export default function RoomPage() {
                 value={content}
                 onChange={e => { setContent(e.target.value); setError(null); }}
               />
-              {error && (
-                <p className="text-red-500 text-[10px] font-black uppercase mb-2 animate-pulse">{error}</p>
-              )}
-              <p className="text-[10px] text-white/30 text-right font-bold mb-6">
-                {content.length}/400
-              </p>
+              {error && <p className="text-red-500 text-[10px] font-black uppercase mb-2 animate-pulse">{error}</p>}
+              <p className="text-[10px] text-white/30 text-right font-bold mb-6">{content.length}/400</p>
               <button
                 onClick={handleDrop}
                 className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all shadow-lg"
