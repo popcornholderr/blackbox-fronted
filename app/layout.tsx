@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Drop Gallery",
+  title: "Black Box",
   description: "Campus Anonymous Pulse",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -24,13 +25,20 @@ export default function RootLayout({
 }>) {
   return (
     <html
-  lang="en"
-  className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
-  style={{ colorScheme: 'dark' }}
->
-      {/* suppressHydrationWarning prevents errors caused by browser extensions injecting code */}
-      <body 
-        className="min-h-full flex flex-col" 
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      style={{ colorScheme: 'dark' }}
+    >
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Black Box" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+      </head>
+      <body
+        className="min-h-full flex flex-col"
         suppressHydrationWarning={true}
       >
         {children}
