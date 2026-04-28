@@ -18,7 +18,7 @@ body {
 
 /* --- CAPSULE STYLES (Preserved) --- */
 .capsule-active {
-  color: #22c55e; /* Green-500 */
+  color: #fac9f6; /* Green-500 */
 }
 
 .capsule-inactive {
@@ -40,17 +40,19 @@ body {
 }
 
 /* --- MASONRY GRID --- */
+/* --- FIXED MASONRY GRID --- */
 .masonry-grid {
+  display: block; /* Ensure it doesn't try to use flex/grid internally */
   column-count: 2;
-  column-gap: 12px;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  column-gap: 16px;
+  width: 100%;
 }
 
 .masonry-item {
-  break-inside: avoid;
-  margin-bottom: 12px;
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: inline-block; /* Crucial: stops items from splitting across columns */
   width: 100%;
+  break-inside: avoid;
+  margin-bottom: 16px;
 }
 
 /* --- NEW: LIQUID JUMP ANIMATION --- */
@@ -83,11 +85,11 @@ body {
   position: absolute;
   top: -6px;
   right: -6px;
-  background: #ff3b3b; /* Vibrant red for visibility */
-  color: white;
+background: #fac9f6; /* Vibrant red for visibility */
+color: #000;
   min-width: 18px;
   height: 18px;
-  border-radius: 50%;
+border: 2px solid #000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,4 +179,13 @@ body {
 }
 .animate-shake {
   animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+.search-focus-glow {
+  box-shadow: 0 0 20px rgba(255, 169, 248, 0.1);
+}
+
+/* Update focus state for any inputs */
+input:focus {
+  caret-color: #fac9f6;
 }
