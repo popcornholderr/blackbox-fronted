@@ -7,7 +7,6 @@ import {
   Copy,
   Plus,
   X,
-  Image as ImageIcon,
   ArrowLeft,
   Check,
   MessageCircle
@@ -27,7 +26,6 @@ export default function RoomPage() {
 
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
-  const [image, setImage] = useState<string | null>(null);
 
   const [seenDrops, setSeenDrops] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -117,17 +115,8 @@ export default function RoomPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleImage = (e: any) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 512000) return alert("File too large! Max 500KB.");
-    const reader = new FileReader();
-    reader.onloadend = () => setImage(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
   const handleDrop = async () => {
-    if (!content && !image) return alert("Write something or add a photo!");
+    if (!content.trim()) return alert("Write something!");
     setError(null);
 
     const av = localStorage.getItem('avatarIndex') || '0';
@@ -137,22 +126,25 @@ export default function RoomPage() {
       body: JSON.stringify({
         roomId: data.room._id,
         content,
-        image,
         tempName: name || "Anonymous",
         avatarIndex: parseInt(av)
       })
     });
 
-    // ✅ Single clean error check — reads actual message from API
     if (!res.ok) {
-      const result = await res.json();
-      setError(result.error || "Something went wrong.");
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const result = await res.json();
+        setError(result.error || "Something went wrong.");
+      } else {
+        setError("Server error. Please try again.");
+      }
       setTimeout(() => setError(null), 3000);
       return;
     }
 
     setShowModal(false);
-    setContent(""); setName(""); setImage(null);
+    setContent(""); setName("");
     fetchRoom();
   };
 
@@ -195,7 +187,7 @@ export default function RoomPage() {
             <h1 className="text-2xl font-black uppercase italic truncate max-w-[250px] mx-auto" style={{ color: data.room.color }}>
               {data.room.title}
             </h1>
-            <div className="flex items-center justify-center gap-2 mt-1 text-[9px] font-bold hover:text-white tracking-widest uppercase">
+            <div className="flex items-center justify-center gap-2 mt-1 text-[9px] font-bold text-white/30 hover:text-white tracking-widest uppercase">
               <span>blackbox-omega-peach.vercel.app/room/{slug}</span>
               <button onClick={copyToClipboard} className="hover:text-white transition-colors">
                 {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
@@ -232,10 +224,6 @@ export default function RoomPage() {
                   <span className="text-[10px] font-black uppercase text-white/60 truncate max-w-[100px]">{drop.tempName}</span>
                 </div>
 
-                {drop.image && (
-                  <img src={drop.image} className="rounded-2xl mb-3 w-full border border-black/5 object-cover" alt="Drop" />
-                )}
-
                 <div className="flex-1">
                   <p className="text-sm font-medium leading-relaxed text-white/80">
                     {displayText}
@@ -252,8 +240,6 @@ export default function RoomPage() {
                 </div>
 
                 <div className="mt-4 border-t border-white/10 pt-3 flex flex-col gap-2">
-
-                  {/* ROW 1: VOTES & TIME */}
                   <div className="flex items-center justify-between">
                     <div className="flex gap-4 items-center">
                       <button
@@ -274,14 +260,12 @@ export default function RoomPage() {
                     </span>
                   </div>
 
-                  {/* ROW 2: SUBDROP COUNT */}
                   {replyCount > 0 && (
                     <div className="flex items-center gap-1 text-[10px] font-black text-white/30">
                       <MessageCircle size={11} />
                       <span>{replyCount} subdrop{replyCount !== 1 ? 's' : ''}</span>
                     </div>
                   )}
-
                 </div>
               </div>
             );
@@ -312,7 +296,7 @@ export default function RoomPage() {
               />
               <textarea
                 maxLength={400}
-                className={`w-full border p-4 rounded-xl mb-2 h-32 resize-none outline-none transition-all duration-300 bg-black text-white
+                className={`w-full border p-4 rounded-xl mb-2 h-36 resize-none outline-none transition-all duration-300 bg-black text-white
                   ${error ? 'border-red-600 animate-shake shadow-[0_0_15px_rgba(220,38,38,0.3)]' : 'border-white/10 focus:bg-[#111]'}`}
                 placeholder="What's the tea?"
                 value={content}
@@ -321,20 +305,13 @@ export default function RoomPage() {
               {error && (
                 <p className="text-red-500 text-[10px] font-black uppercase mb-2 animate-pulse">{error}</p>
               )}
-              <p className="text-[10px] hover:text-white text-right font-bold mb-2">
+              <p className="text-[10px] text-white/30 text-right font-bold mb-6">
                 {content.length}/400
               </p>
-              <div className="flex items-center gap-4 mb-8">
-                <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-white/10 bg-white/5 p-4 rounded-xl cursor-pointer hover:bg-white/10 transition-all">
-                  <ImageIcon size={20} />
-                  <span className="text-[10px] font-black uppercase">{image ? "Image Selected" : "Add Image (500KB)"}</span>
-                  <input type="file" className="hidden" accept="image/*" onChange={handleImage} />
-                </label>
-                {image && (
-                  <button onClick={() => setImage(null)} className="text-red-500 font-black text-[10px] uppercase underline underline-offset-4">Remove</button>
-                )}
-              </div>
-              <button onClick={handleDrop} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all shadow-lg">
+              <button
+                onClick={handleDrop}
+                className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all shadow-lg"
+              >
                 Drop It
               </button>
             </div>
