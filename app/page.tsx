@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Flame, Plus, X, Copy, User, ShieldCheck } from 'lucide-react';
 import { FaInstagram, FaLinkedin } from 'react-icons/fa';
 import RoomTile from '@/components/RoomTile';
@@ -12,7 +12,8 @@ export default function Home() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [agreed, setAgreed] = useState(false);
   const [tab, setTab] = useState<'browse' | 'saved'>('saved');
-  const [rooms, setRooms] = useState([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [roomsLoaded, setRoomsLoaded] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [avatarIndex, setAvatarIndex] = useState(0);
   const [lastSeenMap, setLastSeenMap] = useState<any>({});
@@ -22,8 +23,54 @@ export default function Home() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [newRoom, setNewRoom] = useState({ title: '', color: '#22c55e' });
+  const [fetchError, setFetchError] = useState(false);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFetchingRef = useRef(false);
 
   const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  // ── Fetch with timeout + retry ──────────────────────────────
+  const fetchRooms = useCallback(async (attempt = 0): Promise<void> => {
+    if (isFetchingRef.current && attempt === 0) return;
+    isFetchingRef.current = true;
+    setFetchError(false);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/rooms`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      setRooms(data);
+      setRoomsLoaded(true);
+      setFetchError(false);
+      localStorage.setItem("cachedRooms", JSON.stringify(data));
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        console.warn("Rooms fetch timed out, retrying...");
+      } else {
+        console.error("Fetch rooms failed:", err);
+      }
+
+      // Auto-retry up to 4 times with backoff: 2s, 4s, 8s, 12s
+      if (attempt < 4) {
+        const delay = attempt < 3 ? (attempt + 1) * 2000 : 12000;
+        retryTimeoutRef.current = setTimeout(() => {
+          fetchRooms(attempt + 1);
+        }, delay);
+      } else {
+        setFetchError(true);
+        setRoomsLoaded(true); // stop skeleton even on error
+      }
+    } finally {
+      isFetchingRef.current = false;
+    }
+  }, [BASE_URL]);
 
   useEffect(() => {
     const hasSeenIntroValue = sessionStorage.getItem('hasSeenIntro');
@@ -39,35 +86,36 @@ export default function Home() {
     setSavedIds(saved);
     setAvatarIndex(parseInt(av));
 
+    // ✅ Load cache INSTANTLY so UI is never blank
     const cached = localStorage.getItem("cachedRooms");
-    if (cached) setRooms(JSON.parse(cached));
+    if (cached) {
+      try {
+        setRooms(JSON.parse(cached));
+        setRoomsLoaded(true); // show cached immediately, no skeleton
+      } catch {
+        // corrupted cache, ignore
+      }
+    }
+
+    // Then fetch fresh data in background
     fetchRooms();
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then((reg) => {
-        console.log('SW registered:', reg.scope);
-      }).catch((err) => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
         console.error('SW registration failed:', err);
       });
     }
-  }, []);
+
+    return () => {
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+  }, [fetchRooms]);
 
   // Close search when switching tabs
   useEffect(() => {
     setSearchOpen(false);
     setSearchQuery("");
   }, [tab]);
-
-  const fetchRooms = async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/rooms`);
-      const data = await res.json();
-      setRooms(data);
-      localStorage.setItem("cachedRooms", JSON.stringify(data));
-    } catch (err) {
-      console.error("Fetch rooms failed:", err);
-    }
-  };
 
   const requestNotificationPermission = async () => {
     if (!('Notification' in window)) return;
@@ -114,21 +162,39 @@ export default function Home() {
     setShowAvatarModal(false);
   };
 
+  // ✅ Optimistic toggle — update UI instantly, sync in background
   const toggleSave = async (id: string) => {
     const isSaved = savedIds.includes(id);
     const newSaved = isSaved ? savedIds.filter(i => i !== id) : [...savedIds, id];
     setSavedIds(newSaved);
     localStorage.setItem("savedRooms", JSON.stringify(newSaved));
-    await fetch(`${BASE_URL}/api/rooms/${id}/save`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: isSaved ? "decrement" : "increment" })
-    });
-    fetchRooms();
+
+    // Optimistically update savedCount in local state — clamp at 0
+    setRooms(prev =>
+      prev.map(r =>
+        r._id === id
+          ? { ...r, savedCount: Math.max(0, (r.savedCount || 0) + (isSaved ? -1 : 1)) }
+          : r
+      )
+    );
+
+    try {
+      await fetch(`${BASE_URL}/api/rooms/${id}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: isSaved ? "decrement" : "increment" })
+      });
+      // Refresh in background to sync real count
+      fetchRooms();
+    } catch (err) {
+      console.error("Save sync failed:", err);
+      // Revert optimistic update on failure
+      setSavedIds(prev => isSaved ? [...prev, id] : prev.filter(i => i !== id));
+      localStorage.setItem("savedRooms", JSON.stringify(savedIds));
+    }
   };
 
   // ── FILTERED + SORTED ROOMS ──────────────────────────────────
-  // Saved tab: sort by lastDropAt descending so newest activity is on top
   const filtered = (rooms as any[])
     .filter((r: any) => tab === 'saved' ? savedIds.includes(r._id) : true)
     .filter((r: any) => r.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -136,7 +202,7 @@ export default function Home() {
       if (tab === 'saved') {
         return new Date(b.lastDropAt).getTime() - new Date(a.lastDropAt).getTime();
       }
-      return 0; // browse keeps server order (savedCount desc)
+      return 0;
     });
 
   if (isCheckingSession) return null;
@@ -211,8 +277,6 @@ export default function Home() {
               {/* ── SAVED TAB: AVATAR + SEARCH ── */}
               {tab === 'saved' && (
                 <div className="mt-8 px-6 flex flex-col items-center gap-6">
-
-                  {/* Avatar */}
                   <div className="flex flex-col items-center">
                     <div
                       onClick={() => setShowAvatarModal(true)}
@@ -225,7 +289,6 @@ export default function Home() {
                     </button>
                   </div>
 
-                  {/* Search bar — same style as browse */}
                   <div className="flex items-center w-full h-12 gap-2">
                     <div className={`flex items-center h-full transition-all duration-500 ease-out bg-white/5 rounded-2xl border border-white/10 hover:border-[#fac9f6]/50 ${searchOpen ? 'flex-1 ring-1 ring-[#fac9f6]/30 bg-white/10' : 'w-12'}`}>
                       <button
@@ -249,7 +312,6 @@ export default function Home() {
                       </AnimatePresence>
                     </div>
                   </div>
-
                 </div>
               )}
 
@@ -296,26 +358,51 @@ export default function Home() {
 
               {/* ── ROOM GRID ── */}
               <div className="px-6 mt-8 grid grid-cols-2 gap-6 pb-20">
-                {filtered.length === 0 ? (
+                {/* Error state with manual retry */}
+                {fetchError && rooms.length === 0 && (
+                  <div className="col-span-2 flex flex-col items-center gap-3 py-10">
+                    <p className="text-white/30 text-xs font-black uppercase tracking-widest">Connection issue</p>
+                    <button
+                      onClick={() => fetchRooms(0)}
+                      className="text-[#fac9f6] text-xs font-black uppercase tracking-widest border border-[#fac9f6]/30 px-4 py-2 rounded-full"
+                    >
+                      Tap to retry
+                    </button>
+                  </div>
+                )}
+
+                {/* Skeleton — only show if nothing loaded yet */}
+                {!roomsLoaded && !fetchError && (
                   [...Array(6)].map((_, i) => (
                     <div key={i} className="aspect-square rounded-[2.5rem] bg-white/5 border border-white/10 animate-pulse" />
                   ))
-                ) : (
-                  filtered.map((room: any) => {
-                    const lastSeen = lastSeenMap[room._id] || 0;
-                    const hasNew = new Date(room.lastDropAt).getTime() > lastSeen;
-                    return (
-                      <div key={room._id} className="relative">
-                        {tab === 'saved' && hasNew && <div className="dot-badge">!</div>}
-                        <RoomTile
-                          room={room}
-                          isSaved={savedIds.includes(room._id)}
-                          onSave={() => toggleSave(room._id)}
-                          onOpen={() => markRoomSeen(room._id)}
-                        />
-                      </div>
-                    );
-                  })
+                )}
+
+                {/* Rooms */}
+                {roomsLoaded && filtered.map((room: any) => {
+                  const lastSeen = lastSeenMap[room._id] || 0;
+                  const hasNew = new Date(room.lastDropAt).getTime() > lastSeen;
+                  return (
+                    <div key={room._id} className="relative">
+                      {tab === 'saved' && hasNew && <div className="dot-badge">!</div>}
+                      <RoomTile
+                        room={room}
+                        isSaved={savedIds.includes(room._id)}
+                        onSave={() => toggleSave(room._id)}
+                        onOpen={() => markRoomSeen(room._id)}
+                      />
+                    </div>
+                  );
+                })}
+
+                {/* Empty saved state */}
+                {roomsLoaded && tab === 'saved' && filtered.length === 0 && !fetchError && (
+                  <div className="col-span-2 flex flex-col items-center gap-2 py-10">
+                    <p className="text-white/20 text-xs font-black uppercase tracking-widest">No saved rooms yet</p>
+                    <button onClick={() => setTab('browse')} className="text-[#fac9f6] text-xs font-black uppercase tracking-widest mt-1">
+                      Browse rooms →
+                    </button>
+                  </div>
                 )}
               </div>
 
