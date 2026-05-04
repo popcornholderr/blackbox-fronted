@@ -428,111 +428,7 @@ function PosterModeration() {
 
 /* ══════════════════════════════════════════════════════════
    POSTER 4 — REPLY TO DROPS
-══════════════════════════════════════════════════════════ */
-function PosterReplies() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: false, margin: "0px 0px -40px 0px" });
-  const [phase, setPhase] = useState(0);
-
-  useEffect(() => {
-    if (!inView) { setPhase(0); return; }
-    const t1 = setTimeout(() => setPhase(1), 400);
-    const t2 = setTimeout(() => setPhase(2), 1300);
-    const t3 = setTimeout(() => setPhase(3), 2200);
-    const t4 = setTimeout(() => setPhase(4), 3000);
-    return () => [t1,t2,t3,t4].forEach(clearTimeout);
-  }, [inView]);
-
-  return (
-    <Card ref={ref as any} className="col-span-2">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#818cf8]">Step 3</span>
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— Reply & React</span>
-      </div>
-
-      {/* Feed replica — styled like the actual room page */}
-      <div className="rounded-[1.4rem] border border-white/10 overflow-hidden divide-y divide-white/5" style={{ background: "#111111" }}>
-
-        {/* Drop item */}
-        {phase >= 1 && (
-          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="px-4 py-3">
-            {/* Avatar + name row */}
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-7 h-7 rounded-full border border-white/10 flex items-center justify-center text-xs" style={{ background: "#1a1a1a" }}>👤</div>
-              <div>
-                <span className="text-[10px] font-black text-white/70">Ghost_42</span>
-                <span className="text-[8px] text-white/25 ml-2">2m ago</span>
-              </div>
-            </div>
-            <p className="text-[11px] text-white/80 font-medium leading-snug mb-2 break-words">
-              The semester timetable is pure chaos 😭 three subjects overlap on Friday
-            </p>
-            {/* Reactions row */}
-            <div className="flex items-center gap-3">
-              <span className="text-[9px] text-white/30 flex items-center gap-1">👍 <span>12</span></span>
-              <span className="text-[9px] text-white/30 flex items-center gap-1">👎 <span>2</span></span>
-              <motion.button
-                animate={{ color: phase >= 2 ? "#818cf8" : "rgba(255,255,255,0.25)" }}
-                className="text-[9px] font-black uppercase tracking-wider ml-auto"
-              >
-                Reply
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Reply 1 */}
-        {phase >= 2 && (
-          <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="pl-10 pr-4 py-2.5" style={{ background: "rgba(129,140,248,0.05)" }}>
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="w-5 h-5 rounded-full border border-white/10 flex items-center justify-center text-[9px]" style={{ background: "#1a1a1a" }}>👤</div>
-              <span className="text-[9px] font-black text-[#818cf8]/80">Shadow_99</span>
-              <span className="text-[7px] text-white/20 ml-1">just now</span>
-            </div>
-            <p className="text-[10px] text-[#a5b4fc] font-medium leading-snug break-words">facts, they literally clash lab + quiz + lecture 💀</p>
-          </motion.div>
-        )}
-
-        {/* Reply 2 */}
-        {phase >= 3 && (
-          <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="pl-10 pr-4 py-2.5" style={{ background: "rgba(129,140,248,0.04)" }}>
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="w-5 h-5 rounded-full border border-white/10 flex items-center justify-center text-[9px]" style={{ background: "#1a1a1a" }}>👤</div>
-              <span className="text-[9px] font-black text-[#818cf8]/80">Anon_55</span>
-              <span className="text-[7px] text-white/20 ml-1">just now</span>
-            </div>
-            <p className="text-[10px] text-[#a5b4fc] font-medium leading-snug">raise it to HOD anonymously 👀 this app is literally made for that</p>
-          </motion.div>
-        )}
-
-        {/* Typing indicator for 4th reply */}
-        {phase >= 3 && phase < 4 && (
-          <div className="pl-10 pr-4 py-2 flex gap-1 items-center">
-            {[0, 0.18, 0.36].map((d, i) => (
-              <motion.div key={i} className="w-1 h-1 rounded-full bg-[#818cf8]/50"
-                animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
-                transition={{ duration: 0.8, repeat: Infinity, delay: d }} />
-            ))}
-          </div>
-        )}
-
-        {phase >= 4 && (
-          <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="pl-10 pr-4 py-2.5" style={{ background: "rgba(129,140,248,0.03)" }}>
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="w-5 h-5 rounded-full border border-white/10 flex items-center justify-center text-[9px]" style={{ background: "#1a1a1a" }}>👤</div>
-              <span className="text-[9px] font-black text-[#818cf8]/80">Night_Owl</span>
-            </div>
-            <p className="text-[10px] text-[#a5b4fc] font-medium">agreed, sign the petition in room "Admin Grievances" 👆</p>
-          </motion.div>
-        )}
-      </div>
-
-      <p className="text-[10px] text-white/35 mt-3 leading-relaxed font-medium">
-        Tap <span className="text-[#818cf8] font-black">Reply</span> on any drop to thread a response. Like 👍 or dislike 👎 — everything is <span className="text-[#818cf8] font-black">fully anonymous</span>.
-      </p>
-    </Card>
-  );
-}
+══════════════════════════════════════════════════════════ 
 
 /* ══════════════════════════════════════════════════════════
    ROOT EXPORT
@@ -545,7 +441,6 @@ export default function OnboardingPosters({ onCreateRoom }: { onCreateRoom: () =
       <div className="px-6 flex flex-col gap-4">
         <PosterCreateRoom onCreateRoom={onCreateRoom} />
         <PosterNewDrop />
-        <PosterReplies />
         <PosterModeration />
       </div>
 
