@@ -35,7 +35,7 @@ const Card = forwardRef<HTMLDivElement, {
 }>(({ children, className = "", style = {} }, ref) => (
   <div
     ref={ref}
-    className={`relative rounded-[2rem] overflow-hidden border border-white/10 p-5 ${className}`}
+    className={`relative w-full max-w-full rounded-[2rem] overflow-hidden border border-white/10 p-5 ${className}`}
     style={{ background: "#0a0a0a", ...style }}
   >
     {children}
@@ -145,7 +145,7 @@ function PosterCreateRoom({ onCreateRoom }: { onCreateRoom: () => void }) {
                 Do not forget to copy the link
               </p>
               <div className="flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2.5" style={{ background: "rgba(255,255,255,0.04)" }}>
-                <span className="text-[9px] font-mono text-white/50 flex-1 truncate">
+                <span className="text-[9px] font-mono text-white/50 flex-1 break-all">
                   blackbox-omega-peach.vercel.app/room/{slug}
                 </span>
                 <motion.div animate={step >= 4 ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
@@ -258,7 +258,7 @@ function PosterNewDrop() {
 
           {/* Message body */}
           <div className="rounded-2xl border border-white/10 px-4 py-3 min-h-[80px] flex flex-col justify-between" style={{ background: "rgba(255,255,255,0.04)" }}>
-            <span className="text-sm text-white/80 font-medium leading-snug block">
+            <span className="text-sm text-white/80 font-medium leading-snug block break-words">
               {typed || <span className="text-white/20">What's the tea?</span>}
               {step >= 2 && typed.length < fullText.length && <Cursor />}
             </span>
@@ -362,7 +362,7 @@ function PosterModeration() {
               className="rounded-2xl border px-4 py-3 min-h-[72px] flex flex-col justify-between"
               style={{ background: "rgba(255,255,255,0.04)" }}
             >
-              <span className="text-sm font-medium leading-snug block" style={{ color: isBlocked ? "#f87171" : "rgba(255,255,255,0.8)" }}>
+              <span className="text-sm font-medium leading-snug block break-words" style={{ color: isBlocked ? "#f87171" : "rgba(255,255,255,0.8)" }}>
                 {step >= 2 ? typed : <span className="text-white/20">What's the tea?</span>}
                 {step >= 2 && step < 3 && typed.length < badText.length && <Cursor />}
               </span>
@@ -464,7 +464,7 @@ function PosterReplies() {
                 <span className="text-[8px] text-white/25 ml-2">2m ago</span>
               </div>
             </div>
-            <p className="text-[11px] text-white/80 font-medium leading-snug mb-2">
+            <p className="text-[11px] text-white/80 font-medium leading-snug mb-2 break-words">
               The semester timetable is pure chaos 😭 three subjects overlap on Friday
             </p>
             {/* Reactions row */}
@@ -489,7 +489,7 @@ function PosterReplies() {
               <span className="text-[9px] font-black text-[#818cf8]/80">Shadow_99</span>
               <span className="text-[7px] text-white/20 ml-1">just now</span>
             </div>
-            <p className="text-[10px] text-[#a5b4fc] font-medium leading-snug">facts, they literally clash lab + quiz + lecture 💀</p>
+            <p className="text-[10px] text-[#a5b4fc] font-medium leading-snug break-words">facts, they literally clash lab + quiz + lecture 💀</p>
           </motion.div>
         )}
 
