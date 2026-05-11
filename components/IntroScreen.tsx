@@ -1,50 +1,42 @@
 "use client";
 import { useEffect, useState } from "react";
-import Image from "next/image";
 
 export default function IntroScreen({ onFinish }: { onFinish: () => void }) {
-  const [step, setStep] = useState(0);
+  const [phase, setPhase] = useState<'in' | 'hold' | 'out'>('in');
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStep(1), 3000); // first text done
-    const t2 = setTimeout(() => setStep(2), 4500); // black box text
-    const t3 = setTimeout(() => onFinish(), 6000); // exit intro
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, []);
+    const t1 = setTimeout(() => setPhase('hold'), 400);
+    const t2 = setTimeout(() => setPhase('out'), 1600);
+    const t3 = setTimeout(() => onFinish(), 2200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [onFinish]);
 
   return (
-    <div className="fixed inset-0   flex items-center justify-center z-[999] overflow-hidden">
-      
-      {/* STEP 1 */}
-      {step === 0 && (
-        <div className="text-center animate-growFade">
-          <p className="text-2xl font-black">Shushhhhhh!!</p>
-
-          {/* 👉 YOUR IMAGE HERE */}
-          <Image
-  src="/emoji.png"
-  alt="emoji"
-  width={80}
-  height={80}
-  priority
-  className="mx-auto my-4 object-contain"
-/>
-
-          <p className="text-xl font-bold">it's gossip time</p>
-        </div>
-      )}
-
-      {/* STEP 2 */}
-     {step === 1 && (
-  <h1 className="text-3xl font-black tracking-tighter text-center animate-fadeOut">
-    B<span className="inline-block -scale-x-100">L</span>ACK BOX
-  </h1>
-)}
+    <div
+      className="fixed inset-0 z-[999] flex items-center justify-center bg-black overflow-hidden"
+      style={{
+        opacity: phase === 'out' ? 0 : 1,
+        transition: phase === 'out' ? 'opacity 0.55s cubic-bezier(0.4,0,0.2,1)' : 'none',
+      }}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(250,201,246,0.07) 0%, transparent 70%)',
+          opacity: phase === 'hold' ? 1 : 0,
+          transition: 'opacity 0.4s ease',
+        }}
+      />
+      <h1
+        className="text-4xl font-black tracking-tighter select-none"
+        style={{
+          opacity: phase === 'in' ? 0 : 1,
+          transform: phase === 'in' ? 'scale(0.85)' : 'scale(1)',
+          transition: 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+        }}
+      >
+        B<span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>L</span>ACK BOX
+      </h1>
     </div>
   );
 }
