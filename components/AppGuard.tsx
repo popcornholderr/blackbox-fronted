@@ -1,45 +1,33 @@
 "use client";
 import { useState, useEffect } from 'react';
 import IntroScreen from "./IntroScreen";
-import WarningModal from "./WarningModal";
 
-export default function AppGuard({ children }: { children: React.ReactNode }) {
+// Pass isSharedLink=true from room pages opened via direct URL
+export default function AppGuard({
+  children,
+  isSharedLink = false,
+}: {
+  children: React.ReactNode;
+  isSharedLink?: boolean;
+}) {
   const [showIntro, setShowIntro] = useState(false);
-  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const hasSeenIntro = sessionStorage.getItem('hasSeenIntro');
-    const hasAgreed = sessionStorage.getItem('hasAgreed');
-
-    if (!hasSeenIntro) setShowIntro(true);
-    if (hasAgreed === 'true') setAgreed(true);
-
+    // Show intro if never seen this session OR if it's a shared link (direct URL)
+    if (!hasSeenIntro || isSharedLink) {
+      setShowIntro(true);
+    }
     setLoading(false);
-  }, []);
+  }, [isSharedLink]);
 
-  const handleFinishIntro = () => {
+  const handleFinish = () => {
     sessionStorage.setItem('hasSeenIntro', 'true');
     setShowIntro(false);
   };
 
-  const handleAgree = () => {
-    sessionStorage.setItem('hasAgreed', 'true');
-    setAgreed(true);
-  };
-
   if (loading) return null;
-
-  if (showIntro) {
-    return <IntroScreen onFinish={handleFinishIntro} />;
-  }
-
-  return (
-    <>
-      {!agreed && <WarningModal onAgree={handleAgree} />}
-      <div className={!agreed ? "blur-md pointer-events-none" : ""}>
-        {children}
-      </div>
-    </>
-  );
+  if (showIntro) return <IntroScreen onFinish={handleFinish} />;
+  return <>{children}</>;
 }
