@@ -523,7 +523,7 @@ function DevProfile() {
   );
 }
 
-/* ── GAME ── */
+/* ── GAME (inline, embedded in home) ── */
 const GW = 390, GH = 520, GROUND_Y = 400, CUBE_SIZE = 36;
 const GRAVITY = 0.55, JUMP_FORCE = -13.5, DOUBLE_JUMP_FORCE = -12, BASE_SPEED = 5;
 
@@ -554,7 +554,7 @@ function getObstacle(lvl: number, startX: number): Obstacle {
   }
 }
 
-function drawCube(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number, accent: string, jumping: boolean) {
+function drawCubeGame(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number, accent: string, jumping: boolean) {
   const s = size, d = s * 0.3;
   ctx.save();
   ctx.translate(x + s / 2, y + s / 2);
@@ -572,6 +572,10 @@ function drawCube(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
 function GameView({ onBack }: { onBack: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
+  const uiStateRef = useRef<'idle' | 'playing' | 'over'>('idle');
+  const lastTapRef = useRef(0);
+  const touchStartYRef = useRef(0);
+
   const gameRef = useRef({
     running: false, over: false, started: false,
     cubeY: GROUND_Y - CUBE_SIZE, cubeVY: 0,
@@ -590,7 +594,13 @@ function GameView({ onBack }: { onBack: () => void }) {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const prevLevelRef = useRef(1);
 
+  const setUiStateBoth = (s: 'idle' | 'playing' | 'over') => {
+    uiStateRef.current = s;
+    setUiState(s);
+  };
+
   useEffect(() => {
+    // Only access localStorage on client
     const hs = parseInt(localStorage.getItem('bbgame-hs') || '0');
     setHighScore(hs);
     const g = gameRef.current;
@@ -608,10 +618,22 @@ function GameView({ onBack }: { onBack: () => void }) {
 
   const jump = useCallback(() => {
     const g = gameRef.current;
-    if (!g.started) { g.started = true; g.running = true; setUiState('playing'); }
+    const currentState = uiStateRef.current;
+    if (!g.started || currentState === 'idle') {
+      g.started = true; g.running = true;
+      g.cubeVY = JUMP_FORCE; g.jumping = true; g.doubleAvail = true;
+      setUiStateBoth('playing');
+      spawnJumpParticles();
+      return;
+    }
     if (g.over) return;
-    if (!g.jumping) { g.cubeVY = JUMP_FORCE; g.jumping = true; g.doubleAvail = true; spawnJumpParticles(); }
-    else if (g.doubleAvail) { g.cubeVY = DOUBLE_JUMP_FORCE; g.doubleAvail = false; spawnJumpParticles(); }
+    if (!g.jumping) {
+      g.cubeVY = JUMP_FORCE; g.jumping = true; g.doubleAvail = true;
+      spawnJumpParticles();
+    } else if (g.doubleAvail) {
+      g.cubeVY = DOUBLE_JUMP_FORCE; g.doubleAvail = false;
+      spawnJumpParticles();
+    }
   }, []);
 
   const resetGame = useCallback(() => {
@@ -623,7 +645,8 @@ function GameView({ onBack }: { onBack: () => void }) {
     g.score = 0; g.dist = 0; g.level = 1; g.nextLevelDist = 500;
     g.spawnCooldown = 180; g.cubeRot = 0; g.bgOffset = 0;
     prevLevelRef.current = 1;
-    setScore(0); setLevel(1); setUiState('idle');
+    setScore(0); setLevel(1);
+    setUiStateBoth('idle');
   }, []);
 
   useEffect(() => {
@@ -670,13 +693,13 @@ function GameView({ onBack }: { onBack: () => void }) {
             for (let i = 0; i < 20; i++) g.particles.push({ x: cx + cw / 2, y: cy + ch / 2, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, life: 1, maxLife: 1, color: acc, r: Math.random() * 4 + 1 });
             const hs = parseInt(localStorage.getItem('bbgame-hs') || '0');
             if (g.score > hs) { localStorage.setItem('bbgame-hs', String(g.score)); setHighScore(g.score); }
-            setUiState('over'); break;
+            setUiStateBoth('over'); break;
           }
         }
       }
       g.obstacles.forEach(o => { ctx.shadowColor = o.color; ctx.shadowBlur = 8; ctx.fillStyle = '#111'; ctx.strokeStyle = o.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(o.x, o.y, o.w, o.h, 4); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0; ctx.strokeStyle = o.color + '44'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.roundRect(o.x + 3, o.y + 3, o.w - 6, o.h - 6, 2); ctx.stroke(); });
       ctx.shadowColor = acc; ctx.shadowBlur = 12;
-      drawCube(ctx, 36, g.cubeY, CUBE_SIZE, g.cubeRot, acc, g.jumping);
+      drawCubeGame(ctx, 36, g.cubeY, CUBE_SIZE, g.cubeRot, acc, g.jumping);
       ctx.shadowBlur = 0;
       g.particles.forEach(p => { ctx.globalAlpha = p.life; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); });
       ctx.globalAlpha = 1;
@@ -693,7 +716,36 @@ function GameView({ onBack }: { onBack: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [jump]);
 
-  const handleTap = useCallback((e: React.TouchEvent | React.MouseEvent) => { e.preventDefault(); jump(); }, [jump]);
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartYRef.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dy = e.changedTouches[0].clientY - touchStartYRef.current;
+    // Swipe up = jump
+    if (dy < -30) { jump(); return; }
+    // Tap — check double-tap for double jump
+    const now = Date.now();
+    const since = now - lastTapRef.current;
+    if (since < 280 && since > 30) {
+      const g = gameRef.current;
+      if (g.jumping && g.doubleAvail) {
+        g.cubeVY = DOUBLE_JUMP_FORCE; g.doubleAvail = false;
+        spawnJumpParticles();
+      }
+    } else {
+      jump();
+    }
+    lastTapRef.current = now;
+  }, [jump]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') {
+      if ((e.target as HTMLElement).tagName === 'BUTTON') return;
+      jump();
+    }
+  }, [jump]);
+
   const accentNow = LEVEL_CONFIG[Math.min(level - 1, 49)].accentColor;
 
   return (
@@ -713,20 +765,42 @@ function GameView({ onBack }: { onBack: () => void }) {
           <span className="text-[10px] font-black text-white/70">{highScore}</span>
         </div>
       </div>
-      <div className="relative" style={{ width: GW, height: GH }}>
-        <canvas ref={canvasRef} width={GW} height={GH} style={{ display: 'block', touchAction: 'none', borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }} onTouchStart={handleTap} onClick={handleTap} />
+
+      <div
+        className="relative"
+        style={{ width: GW, height: GH, touchAction: 'none', userSelect: 'none', WebkitTapHighlightColor: 'transparent' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onPointerDown={handlePointerDown}
+      >
+        <canvas
+          ref={canvasRef}
+          width={GW}
+          height={GH}
+          style={{ display: 'block', borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}
+        />
+
         <AnimatePresence>
           {uiState === 'idle' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center" style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
               <motion.div animate={{ y: [0, -8, 0], scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} className="w-20 h-20 rounded-[1.5rem] border-2 border-white/20 bg-[#111] flex items-center justify-center mb-6 overflow-hidden" style={{ boxShadow: '0 0 30px rgba(250,201,246,0.2)' }}>
                 <Image src="/logo 2.png" alt="BB" width={52} height={52} className="object-contain" />
               </motion.div>
               <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-1">BlackBox Runner</h2>
-              <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest mb-8">50 levels · tap to start</p>
-              <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.4, repeat: Infinity }} className="text-[13px] font-black uppercase tracking-[0.3em] text-white/60">TAP / SPACE to start</motion.div>
+              <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest mb-6">50 levels · tap to start</p>
+              <div className="flex flex-col items-center gap-1.5 mb-6">
+                {[['👆','Tap = Jump'],['✌️','Double tap = Double jump'],['👇','Swipe down = Crouch']].map(([icon, text]) => (
+                  <div key={text} className="flex items-center gap-2">
+                    <span className="text-sm">{icon}</span>
+                    <span className="text-[9px] font-black uppercase text-white/35 tracking-widest">{text}</span>
+                  </div>
+                ))}
+              </div>
+              <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.4, repeat: Infinity }} className="text-[13px] font-black uppercase tracking-[0.3em] text-white/60">TAP TO START</motion.div>
             </motion.div>
           )}
         </AnimatePresence>
+
         <AnimatePresence>
           {uiState === 'over' && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="absolute inset-0 flex flex-col items-center justify-center gap-4" style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}>
@@ -741,28 +815,27 @@ function GameView({ onBack }: { onBack: () => void }) {
                   </div>
                 ))}
               </div>
-              {score >= highScore && score > 0 && (
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }} className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#fbbf24]/40 bg-[#fbbf24]/10">
-                  <Trophy size={12} className="text-[#fbbf24]" />
-                  <span className="text-[10px] font-black uppercase text-[#fbbf24] tracking-widest">New High Score!</span>
-                </motion.div>
-              )}
-              <button onClick={resetGame} className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-sm active:scale-95 transition-all mt-2">
+              <button
+                onPointerDown={(e) => { e.stopPropagation(); resetGame(); }}
+                className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-sm active:scale-95 transition-all mt-2"
+              >
                 <RotateCcw size={16} /> Play Again
               </button>
             </motion.div>
           )}
         </AnimatePresence>
+
         <AnimatePresence>
           {showLevelUp && (
-            <motion.div initial={{ opacity: 0, y: -20, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.85 }} className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-black/80 backdrop-blur-sm" style={{ zIndex: 50 }}>
+            <motion.div initial={{ opacity: 0, y: -20, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.85 }} className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-black/80 backdrop-blur-sm pointer-events-none" style={{ zIndex: 50 }}>
               <Zap size={12} className="text-[#fbbf24]" />
               <span className="text-[11px] font-black uppercase tracking-widest text-white">Level {level}!</span>
             </motion.div>
           )}
         </AnimatePresence>
+
         {uiState === 'playing' && (
-          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between px-4 py-2 rounded-2xl border border-white/10 bg-black/60 backdrop-blur-sm">
+          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between px-4 py-2 rounded-2xl border border-white/10 bg-black/60 backdrop-blur-sm pointer-events-none">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: accentNow }} />
               <span className="text-[10px] font-black uppercase text-white/50 tracking-widest">Lvl {level}</span>
@@ -775,8 +848,9 @@ function GameView({ onBack }: { onBack: () => void }) {
           </div>
         )}
       </div>
-      <div className="mt-4 flex items-center gap-4 text-[9px] font-black uppercase text-white/20 tracking-widest flex-wrap justify-center px-4">
-        <span>TAP = Jump</span><span>·</span><span>Double tap = Double jump</span><span>·</span><span>SPACE / ↑</span>
+
+      <div className="mt-4 flex items-center gap-3 text-[9px] font-black uppercase text-white/20 tracking-widest flex-wrap justify-center px-4">
+        <span>👆 Tap = Jump</span><span>·</span><span>✌️ Double tap = Double jump</span>
       </div>
       {uiState === 'playing' && (
         <div className="mt-3 w-full px-4">
@@ -803,9 +877,9 @@ export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(1);
   const [direction, setDirection] = useState(0);
 
-  // Show splash on EVERY visit — start false to avoid SSR mismatch, set true in useEffect
   const [showSplash, setShowSplash] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const [rooms, setRooms] = useState<any[]>([]);
   const [roomsLoaded, setRoomsLoaded] = useState(false);
@@ -825,6 +899,7 @@ export default function Home() {
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFetchingRef = useRef(false);
   const roomsRef = useRef<HTMLDivElement>(null);
+  const dragStartXRef = useRef(0);
 
   const paginate = (newIndex: number) => {
     setDirection(newIndex > currentIndex ? 1 : -1);
@@ -833,11 +908,10 @@ export default function Home() {
 
   useEffect(() => { setSearchOpen(false); setSearchQuery(''); }, [currentIndex]);
 
+  // KEY FIX: All client-only initialization in one effect, after mount
   useEffect(() => {
-    // Always show splash on every fresh page load
+    setMounted(true);
     setShowSplash(true);
-
-    // Mark session so AppGuard on room pages knows we came from within the app
     sessionStorage.setItem('hasSeenIntro', 'true');
 
     const saved = JSON.parse(localStorage.getItem('savedRooms') || '[]');
@@ -890,14 +964,6 @@ export default function Home() {
     return () => { if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current); };
   }, [fetchRooms, fetchBestContent]);
 
-  const handleSwipe = (_: any, info: { offset: { x: number }; velocity: { x: number } }) => {
-    const { offset, velocity } = info;
-    const isSwipe = Math.abs(offset.x) > 50 || Math.abs(velocity.x) > 300;
-    if (!isSwipe) return;
-    if (offset.x < 0 && currentIndex < 3) paginate(currentIndex + 1);
-    else if (offset.x > 0 && currentIndex > 0) paginate(currentIndex - 1);
-  };
-
   const handleCreateRoom = async () => {
     if (!newRoom.title.trim()) return alert('Title is required!');
     const res = await fetch(`${BASE_URL}/api/rooms`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newRoom) });
@@ -944,9 +1010,19 @@ export default function Home() {
     .filter(r => r.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => currentIndex === 2 ? new Date(b.lastDropAt).getTime() - new Date(a.lastDropAt).getTime() : 0);
 
+  // Don't render localStorage-dependent UI until mounted (prevents hydration mismatch)
+  if (!mounted) {
+    return (
+      <main className="w-full max-w-md mx-auto min-h-screen bg-black text-white flex items-center justify-center">
+        <div suppressHydrationWarning className="text-white/20 text-xs font-black uppercase tracking-widest animate-pulse">
+          Loading...
+        </div>
+      </main>
+    );
+  }
+
   return (
     <>
-      {/* Splash on every visit — client only, starts false so SSR is clean */}
       <AnimatePresence onExitComplete={() => setSplashDone(true)}>
         {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       </AnimatePresence>
@@ -986,7 +1062,16 @@ export default function Home() {
           </button>
         </div>
 
-        <motion.div drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.1} onDragEnd={handleSwipe} className="relative mt-4 touch-pan-y w-full">
+        <div
+          className="relative mt-4 touch-pan-y w-full overflow-hidden"
+          onPointerDown={(e) => { dragStartXRef.current = e.clientX; }}
+          onPointerUp={(e) => {
+            const diff = e.clientX - dragStartXRef.current;
+            if (Math.abs(diff) < 40) return;
+            if (diff < 0 && currentIndex < 3) paginate(currentIndex + 1);
+            else if (diff > 0 && currentIndex > 0) paginate(currentIndex - 1);
+          }}
+        >
           <AnimatePresence initial={false} custom={direction} mode="wait">
             <motion.div
               key={currentIndex}
@@ -1132,7 +1217,9 @@ export default function Home() {
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-4 pb-24">
-                      {!roomsLoaded && !fetchError && [...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-[2rem] bg-white/5 border border-white/10 animate-pulse" />)}
+                      {!roomsLoaded && !fetchError && [...Array(6)].map((_, i) => (
+                        <div key={i} suppressHydrationWarning className="aspect-square rounded-[2rem] bg-white/5 border border-white/10 animate-pulse" />
+                      ))}
                       {roomsLoaded && filtered.map((room: any) => (
                         <RoomTile key={room._id} room={room} isSaved={savedIds.includes(room._id)} onSave={() => toggleSave(room._id)} onOpen={() => markRoomSeen(room._id)} />
                       ))}
@@ -1168,7 +1255,9 @@ export default function Home() {
                         <button onClick={() => fetchRooms(0)} className="text-[#fac9f6] text-xs font-black uppercase border border-[#fac9f6]/30 px-4 py-2 rounded-full">Tap to retry</button>
                       </div>
                     )}
-                    {!roomsLoaded && !fetchError && [...Array(4)].map((_, i) => <div key={i} className="aspect-square rounded-[2rem] bg-white/5 border border-white/10 animate-pulse" />)}
+                    {!roomsLoaded && !fetchError && [...Array(4)].map((_, i) => (
+                      <div key={i} suppressHydrationWarning className="aspect-square rounded-[2rem] bg-white/5 border border-white/10 animate-pulse" />
+                    ))}
                     {roomsLoaded && filtered.map((room: any) => {
                       const lastSeen = lastSeenMap[room._id] || 0;
                       const hasNew = new Date(room.lastDropAt).getTime() > lastSeen;
@@ -1196,7 +1285,7 @@ export default function Home() {
               )}
             </motion.div>
           </AnimatePresence>
-        </motion.div>
+        </div>
 
         <AnimatePresence>
           {currentIndex === 2 && (
@@ -1264,7 +1353,6 @@ export default function Home() {
             </motion.div>
           )}
         </AnimatePresence>
-
       </main>
     </>
   );
