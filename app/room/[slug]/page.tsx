@@ -113,6 +113,24 @@ function RoomContent() {
     return () => window.removeEventListener("beforeunload", mark);
   }, [data, slug]);
 
+  const handleBack = () => {
+    // Mark all drops as seen
+    if (data) {
+      const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
+      const nids = data.drops.map((d: any) => String(d._id).trim()).filter((id: string) => !cs.includes(id));
+      localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...nids]));
+    }
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    // FIX: Always set hasSeenIntro before going back.
+    // This prevents AppGuard from showing the BLACK BOX intro splash
+    // when the user lands on the home page via the back button.
+    sessionStorage.setItem('hasSeenIntro', 'true');
+
+    if (window.history.length <= 2) router.push('/');
+    else router.back();
+  };
+
   const handleVote = async (dropId: string, type: 'likes' | 'dislikes', e: React.MouseEvent) => {
     e.stopPropagation();
     await fetch(`${BASE_URL}/api/drops/${dropId}/vote`, {
@@ -170,6 +188,8 @@ function RoomContent() {
   const navigateToDrop = (dropId: string) => {
     const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
     if (!cs.includes(dropId)) localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, dropId]));
+    // FIX: set hasSeenIntro so nested room navigation never shows the intro
+    sessionStorage.setItem('hasSeenIntro', 'true');
     router.push(`/room/${slug}/${dropId}`);
   };
 
@@ -193,13 +213,7 @@ function RoomContent() {
 
       {/* HEADER */}
       <header className="p-5 bg-black/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 flex items-center">
-        <button onClick={() => {
-          const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
-          const nids = data.drops.map((d: any) => String(d._id).trim()).filter((id: string) => !cs.includes(id));
-          localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...nids]));
-          if (timerRef.current) clearInterval(timerRef.current);
-          if (window.history.length <= 2) router.push('/'); else router.back();
-        }} className="p-2 border border-white/20 rounded-xl bg-black">
+        <button onClick={handleBack} className="p-2 border border-white/20 rounded-xl bg-black">
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1 text-center pr-10">
@@ -431,11 +445,6 @@ function RoomContent() {
   );
 }
 
-/* ── Main export: wrap in AppGuard with isSharedLink=true ─ */
-// isSharedLink=true means: show the BLACK BOX intro splash only when
-// someone opens this room via a direct/shared URL (first time this session).
-// If they navigate to this room FROM within the app, AppGuard sees
-// hasSeenIntro already set in sessionStorage and skips the splash.
 export default function RoomPage() {
   return (
     <AppGuard isSharedLink={true}>
