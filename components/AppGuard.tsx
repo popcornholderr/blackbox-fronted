@@ -9,13 +9,13 @@ export default function AppGuard({
   children: React.ReactNode;
   isSharedLink?: boolean;
 }) {
+  // Initialize to false; only show intro after mount check
   const [showIntro, setShowIntro] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (isSharedLink) {
-      // sessionStorage is cleared on every new tab/browser open.
-      // So direct room links always show intro on fresh visits,
-      // but NOT when navigating from within the app same session.
       const hasSeen = sessionStorage.getItem('hasSeenIntro');
       if (!hasSeen) {
         setShowIntro(true);
@@ -28,11 +28,11 @@ export default function AppGuard({
     setShowIntro(false);
   };
 
-  // Always render children — intro overlays on top via position:fixed
+  // Suppress hydration mismatch on the wrapper
   return (
-    <>
-      {showIntro && <IntroScreen onFinish={handleFinish} />}
+    <div suppressHydrationWarning>
+      {mounted && showIntro && <IntroScreen onFinish={handleFinish} />}
       {children}
-    </>
+    </div>
   );
 }
