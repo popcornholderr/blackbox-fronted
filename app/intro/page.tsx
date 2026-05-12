@@ -311,8 +311,8 @@ function DevProfile() {
           </div>
         </div>
         <div className="flex gap-3 w-full">
-          <a href="https://www.linkedin.com/in/daksh-vasani/" target="_blank" className="flex-1 flex items-center justify-center p-4 bg-[#0077b5]/10 border border-[#0077b5]/20 rounded-2xl text-[#0077b5]"><FaLinkedin size={18} /></a>
-          <a href="https://www.instagram.com/wasitreallydaksh" target="_blank" className="flex-1 flex items-center justify-center p-4 bg-pink-500/10 border border-pink-500/20 rounded-2xl text-pink-500"><FaInstagram size={18} /></a>
+          <a href="https://www.linkedin.com/in/daksh-vasani/" target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center p-4 bg-[#0077b5]/10 border border-[#0077b5]/20 rounded-2xl text-[#0077b5]"><FaLinkedin size={18} /></a>
+          <a href="https://www.instagram.com/wasitreallydaksh" target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center p-4 bg-pink-500/10 border border-pink-500/20 rounded-2xl text-pink-500"><FaInstagram size={18} /></a>
         </div>
         <p className="mt-6 text-[8px] font-black text-white/20 uppercase tracking-widest">© 2026 Black Box Protocol</p>
       </div>
@@ -324,88 +324,152 @@ function DevProfile() {
 export default function IntroPage() {
   const router = useRouter();
 
-  // ── SWIPE HANDLER ──
-  // Chain: /intro ← browse ← saved ← /game
-  // Swipe LEFT  = enter the app (go to / which defaults to saved tab)
-  // Swipe RIGHT = already at the leftmost edge, do nothing
-  const handleSwipe = useCallback((_: any, info: { offset: { x: number }; velocity: { x: number } }) => {
-    const isSwipe = Math.abs(info.offset.x) > 50 || Math.abs(info.velocity.x) > 300;
-    if (!isSwipe) return;
-    if (info.offset.x < 0) {
-      // Swipe LEFT → enter the app, land on saved tab (default home)
-      router.push('/');
+  // Touch swipe state — tracked on the scroll container
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const [swiping, setSwiping] = useState(false);
+  const [swipeX, setSwipeX] = useState(0);
+  const [leaving, setLeaving] = useState(false);
+
+  const navigateHome = useCallback(() => {
+    if (leaving) return;
+    setLeaving(true);
+    sessionStorage.setItem('hasSeenIntro', 'true');
+    router.push('/');
+  }, [router, leaving]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    setSwiping(false);
+    setSwipeX(0);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const dx = e.touches[0].clientX - touchStartXRef.current;
+    const dy = Math.abs(e.touches[0].clientY - touchStartYRef.current);
+    // Only track horizontal swipes (not vertical scrolling)
+    if (dy > 20 && !swiping) return;
+    if (dx < 0) { // left swipe only
+      setSwiping(true);
+      setSwipeX(dx);
     }
-    // Swipe RIGHT on intro = leftmost edge, no action
-  }, [router]);
+  }, [swiping]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (swipeX < -80) {
+      navigateHome();
+    } else {
+      setSwiping(false);
+      setSwipeX(0);
+    }
+  }, [swipeX, navigateHome]);
 
   return (
-    <motion.main
-      className="min-h-screen pb-24 bg-black"
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.1}
-      onDragEnd={handleSwipe}
-    >
-      {/* HEADER */}
-      <header className="px-6 pt-8 pb-4 flex items-center gap-4 sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-white/10">
-        <button onClick={() => router.back()} className="p-2 border border-white/20 rounded-xl bg-black">
-          <ArrowLeft size={18} />
-        </button>
-        <h1 className="text-2xl font-black tracking-tighter">
-          B<span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>L</span>ACK BOX
-        </h1>
-
-        <div className="ml-auto flex items-center">
+    <div className="relative min-h-screen bg-black overflow-hidden">
+      {/* Swipe-away overlay — shows as page slides left */}
+      <AnimatePresence>
+        {leaving && (
           <motion.div
-            layoutId="nav-capsule"
-            className="relative flex items-center bg-[#111] border border-white/10 rounded-full p-1"
-            style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05)' }}
+            className="fixed inset-0 z-[300] bg-black"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Main scrollable content — shifts left as user swipes */}
+      <motion.div
+        className="min-h-screen pb-24"
+        style={{
+          x: swiping ? Math.max(swipeX * 0.4, -80) : 0,
+          transition: swiping ? 'none' : 'transform 0.3s ease',
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* HEADER */}
+        <header className="px-6 pt-8 pb-4 flex items-center gap-4 sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-white/10">
+          <button onClick={() => router.back()} className="p-2 border border-white/20 rounded-xl bg-black active:scale-90 transition-transform">
+            <ArrowLeft size={18} />
+          </button>
+          <h1 className="text-2xl font-black tracking-tighter">
+            B<span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>L</span>ACK BOX
+          </h1>
+          {/* Enter app button */}
+          <button
+            onClick={navigateHome}
+            className="ml-auto flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#fac9f6] border border-[#fac9f6]/30 rounded-full px-3 py-1.5 active:scale-95 transition-transform"
           >
+            <span>Enter</span>
+            <motion.span animate={{ x: [0, 3, 0] }} transition={{ duration: 1.1, repeat: Infinity }}>→</motion.span>
+          </button>
+        </header>
+
+        {/* SWIPE HINT */}
+        <motion.div
+          className="flex items-center justify-center gap-2 px-6 pt-4 pb-1"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2, duration: 0.6 }}
+        >
+          <motion.div
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5"
+            animate={{ x: [0, -6, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1 }}
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Swipe left to browse</span>
+            <span className="text-white/30 text-sm">←</span>
+          </motion.div>
+        </motion.div>
+
+        {/* HERO */}
+        <div className="px-6 pt-4 pb-4">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+            className="rounded-[2rem] p-6 border border-white/10 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #111 100%)" }}>
+            <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(ellipse at 80% 20%, rgba(250,201,246,0.15), transparent 60%)" }} />
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-3">
+                <LiveDot color="#fac9f6" />
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Anonymous Platform</span>
+              </div>
+              <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-2 leading-tight">The Anonymous<br />Gossip Platform</h2>
+              <p className="text-[11px] text-white/50 leading-relaxed">Built for college & school students to chat, rant, and gossip freely — no accounts, no identity, no judgment.</p>
+              <button
+                onClick={navigateHome}
+                className="mt-4 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#fac9f6]"
+              >
+                <motion.span animate={{ x: [0, 4, 0] }} transition={{ duration: 1, repeat: Infinity }}>→</motion.span>
+                Start browsing rooms
+              </button>
+            </div>
           </motion.div>
         </div>
-      </header>
 
-      {/* SWIPE HINT */}
-      <motion.div
-        className="flex items-center justify-end gap-1.5 px-6 pt-3"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.5, duration: 0.5 }}
-      >
-        <span className="text-[9px] font-black uppercase tracking-widest text-white/20">Swipe left to enter</span>
-        <motion.span
-          className="text-white/20 text-xs"
-          animate={{ x: [0, 4, 0] }}
-          transition={{ duration: 1.2, repeat: Infinity }}
-        >→</motion.span>
+        <SectionLabel text="How It Works" />
+        <div className="px-6 flex flex-col gap-4">
+          <PosterCreateRoom onCreateRoom={() => { sessionStorage.setItem('hasSeenIntro', 'true'); router.push('/?action=create'); }} />
+          <PosterNewDrop />
+          <PosterModeration />
+          <PosterPolls />
+        </div>
+
+        <SectionLabel text="The Builder" />
+        <DevProfile />
+
+        {/* Bottom CTA */}
+        <div className="px-6 mt-8 pb-8">
+          <button
+            onClick={navigateHome}
+            className="w-full py-4 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <span>Browse Rooms</span>
+            <motion.span animate={{ x: [0, 4, 0] }} transition={{ duration: 1, repeat: Infinity }}>→</motion.span>
+          </button>
+        </div>
       </motion.div>
-
-      {/* HERO */}
-      <div className="px-6 pt-4 pb-4">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          className="rounded-[2rem] p-6 border border-white/10 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #111 100%)" }}>
-          <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(ellipse at 80% 20%, rgba(250,201,246,0.15), transparent 60%)" }} />
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-3">
-              <LiveDot color="#fac9f6" />
-              <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Anonymous Platform</span>
-            </div>
-            <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-2 leading-tight">The Anonymous<br />Gossip Platform</h2>
-            <p className="text-[11px] text-white/50 leading-relaxed">Built for college & school students to chat, rant, and gossip freely — no accounts, no identity, no judgment.</p>
-          </div>
-        </motion.div>
-      </div>
-
-      <SectionLabel text="How It Works" />
-      <div className="px-6 flex flex-col gap-4">
-        <PosterCreateRoom onCreateRoom={() => router.push('/?action=create')} />
-        <PosterNewDrop />
-        <PosterModeration />
-        <PosterPolls />
-      </div>
-
-      <SectionLabel text="The Builder" />
-      <DevProfile />
-    </motion.main>
+    </div>
   );
 }
