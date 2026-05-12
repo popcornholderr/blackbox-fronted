@@ -717,7 +717,7 @@ export default function GamePage() {
         <span>·</span>
         <span> Double tap = Double jump</span>
         <span>·</span>
-        <span> Swipe ↓ = Crouch</span>
+     
       </div>
     </main>
   );
