@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
 import {
   Search, Flame, Plus, X, Copy, Heart, ThumbsDown,
   BarChart2, Users, ChevronRight, Check,
-  ArrowLeft, RotateCcw, Trophy, Zap, ShieldCheck,
+  RotateCcw, Trophy, Zap, ShieldCheck,
 } from 'lucide-react';
 import { FaInstagram, FaLinkedin } from 'react-icons/fa';
 import RoomTile from '@/components/RoomTile';
@@ -14,9 +14,6 @@ import Link from 'next/link';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-/* ─────────────────────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────────────────────── */
 function formatTime(d: string) {
   const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
   if (diff < 60) return 'Just now';
@@ -25,9 +22,7 @@ function formatTime(d: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-/* ─────────────────────────────────────────────────────────
-   SPLASH SCREEN  (shown once on first ever load)
-───────────────────────────────────────────────────────── */
+/* ── SPLASH SCREEN ── */
 function SplashScreen({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     const t = setTimeout(onDone, 1800);
@@ -54,9 +49,7 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   BROWSE — Animated Blurb
-───────────────────────────────────────────────────────── */
+/* ── ANIMATED BLURB ── */
 function AnimatedBlurb({ onReadMore }: { onReadMore: () => void }) {
   const words = ['Anonymous.', 'Unfiltered.', 'For students.'];
   const [wi, setWi] = useState(0);
@@ -116,9 +109,7 @@ function AnimatedBlurb({ onReadMore }: { onReadMore: () => void }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   INTRO VIEW — primitives
-───────────────────────────────────────────────────────── */
+/* ── INTRO primitives ── */
 const Cursor = () => (
   <motion.span
     className="inline-block w-[1.5px] h-[0.85em] bg-white/60 ml-[1px] align-middle"
@@ -167,7 +158,6 @@ const SectionLabel = ({ text }: { text: string }) => {
   );
 };
 
-/* ── INTRO: Poster 1 – Create Room ── */
 function PosterCreateRoom({ onCreateRoom }: { onCreateRoom: () => void }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
@@ -244,7 +234,6 @@ function PosterCreateRoom({ onCreateRoom }: { onCreateRoom: () => void }) {
   );
 }
 
-/* ── INTRO: Poster 2 – New Drop ── */
 function PosterNewDrop() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
@@ -306,7 +295,6 @@ function PosterNewDrop() {
   );
 }
 
-/* ── INTRO: Poster 3 – Moderation ── */
 function PosterModeration() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
@@ -409,7 +397,6 @@ function PosterModeration() {
   );
 }
 
-/* ── INTRO: Poster 4 – Polls ── */
 function PosterPolls() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
@@ -483,7 +470,6 @@ function PosterPolls() {
   );
 }
 
-/* ── INTRO: Developer Profile ── */
 function DevProfile() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '0px 0px -40px 0px' });
@@ -537,9 +523,7 @@ function DevProfile() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   GAME VIEW constants & helpers
-───────────────────────────────────────────────────────── */
+/* ── GAME ── */
 const GW = 390, GH = 520, GROUND_Y = 400, CUBE_SIZE = 36;
 const GRAVITY = 0.55, JUMP_FORCE = -13.5, DOUBLE_JUMP_FORCE = -12, BASE_SPEED = 5;
 
@@ -585,9 +569,6 @@ function drawCube(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   ctx.restore();
 }
 
-/* ─────────────────────────────────────────────────────────
-   GAME VIEW component (embedded, no router)
-───────────────────────────────────────────────────────── */
 function GameView({ onBack }: { onBack: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
@@ -660,7 +641,6 @@ function GameView({ onBack }: { onBack: () => void }) {
       ctx.shadowColor = acc; ctx.shadowBlur = 6; ctx.strokeStyle = acc + '60'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(GW, GROUND_Y); ctx.stroke(); ctx.shadowBlur = 0;
       const gx = ((g.bgOffset * 0.5) % 60); ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 0.5;
       for (let i = -60; i < GW + 60; i += 60) { ctx.beginPath(); ctx.moveTo(i - gx, GROUND_Y); ctx.lineTo(i - gx, GH); ctx.stroke(); }
-
       if (g.running && !g.over) {
         g.bgOffset += spd;
         g.cubeVY += GRAVITY; g.cubeY += g.cubeVY;
@@ -694,7 +674,6 @@ function GameView({ onBack }: { onBack: () => void }) {
           }
         }
       }
-
       g.obstacles.forEach(o => { ctx.shadowColor = o.color; ctx.shadowBlur = 8; ctx.fillStyle = '#111'; ctx.strokeStyle = o.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(o.x, o.y, o.w, o.h, 4); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0; ctx.strokeStyle = o.color + '44'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.roundRect(o.x + 3, o.y + 3, o.w - 6, o.h - 6, 2); ctx.stroke(); });
       ctx.shadowColor = acc; ctx.shadowBlur = 12;
       drawCube(ctx, 36, g.cubeY, CUBE_SIZE, g.cubeRot, acc, g.jumping);
@@ -715,12 +694,10 @@ function GameView({ onBack }: { onBack: () => void }) {
   }, [jump]);
 
   const handleTap = useCallback((e: React.TouchEvent | React.MouseEvent) => { e.preventDefault(); jump(); }, [jump]);
-
   const accentNow = LEVEL_CONFIG[Math.min(level - 1, 49)].accentColor;
 
   return (
     <div className="flex flex-col items-center pb-10">
-      {/* sub-header row */}
       <div className="w-full flex items-center gap-3 px-4 mb-4">
         <div className="flex items-center gap-2 flex-1">
           <div className="w-8 h-8 rounded-lg border border-white/20 bg-black flex items-center justify-center overflow-hidden">
@@ -736,40 +713,23 @@ function GameView({ onBack }: { onBack: () => void }) {
           <span className="text-[10px] font-black text-white/70">{highScore}</span>
         </div>
       </div>
-
-      {/* canvas wrapper */}
       <div className="relative" style={{ width: GW, height: GH }}>
-        <canvas
-          ref={canvasRef} width={GW} height={GH}
-          style={{ display: 'block', touchAction: 'none', borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}
-          onTouchStart={handleTap} onClick={handleTap}
-        />
-
-        {/* IDLE overlay */}
+        <canvas ref={canvasRef} width={GW} height={GH} style={{ display: 'block', touchAction: 'none', borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }} onTouchStart={handleTap} onClick={handleTap} />
         <AnimatePresence>
           {uiState === 'idle' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center"
-              style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
-              <motion.div animate={{ y: [0, -8, 0], scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                className="w-20 h-20 rounded-[1.5rem] border-2 border-white/20 bg-[#111] flex items-center justify-center mb-6 overflow-hidden"
-                style={{ boxShadow: '0 0 30px rgba(250,201,246,0.2)' }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center" style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
+              <motion.div animate={{ y: [0, -8, 0], scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} className="w-20 h-20 rounded-[1.5rem] border-2 border-white/20 bg-[#111] flex items-center justify-center mb-6 overflow-hidden" style={{ boxShadow: '0 0 30px rgba(250,201,246,0.2)' }}>
                 <Image src="/logo 2.png" alt="BB" width={52} height={52} className="object-contain" />
               </motion.div>
               <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-1">BlackBox Runner</h2>
               <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest mb-8">50 levels · tap to start</p>
-              <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.4, repeat: Infinity }}
-                className="text-[13px] font-black uppercase tracking-[0.3em] text-white/60">TAP / SPACE to start</motion.div>
+              <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.4, repeat: Infinity }} className="text-[13px] font-black uppercase tracking-[0.3em] text-white/60">TAP / SPACE to start</motion.div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* GAME OVER overlay */}
         <AnimatePresence>
           {uiState === 'over' && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="absolute inset-0 flex flex-col items-center justify-center gap-4"
-              style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="absolute inset-0 flex flex-col items-center justify-center gap-4" style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}>
               <motion.div animate={{ rotate: [0, -5, 5, -3, 0] }} transition={{ duration: 0.5 }} className="text-4xl mb-2">💥</motion.div>
               <h2 className="text-2xl font-black uppercase italic tracking-tight text-white">Game Over</h2>
               <div className="grid grid-cols-3 gap-3 w-64">
@@ -782,32 +742,25 @@ function GameView({ onBack }: { onBack: () => void }) {
                 ))}
               </div>
               {score >= highScore && score > 0 && (
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#fbbf24]/40 bg-[#fbbf24]/10">
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }} className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#fbbf24]/40 bg-[#fbbf24]/10">
                   <Trophy size={12} className="text-[#fbbf24]" />
                   <span className="text-[10px] font-black uppercase text-[#fbbf24] tracking-widest">New High Score!</span>
                 </motion.div>
               )}
-              <button onClick={resetGame}
-                className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-sm active:scale-95 transition-all mt-2">
+              <button onClick={resetGame} className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-sm active:scale-95 transition-all mt-2">
                 <RotateCcw size={16} /> Play Again
               </button>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* LEVEL UP toast */}
         <AnimatePresence>
           {showLevelUp && (
-            <motion.div initial={{ opacity: 0, y: -20, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.85 }}
-              className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-black/80 backdrop-blur-sm" style={{ zIndex: 50 }}>
+            <motion.div initial={{ opacity: 0, y: -20, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.85 }} className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-black/80 backdrop-blur-sm" style={{ zIndex: 50 }}>
               <Zap size={12} className="text-[#fbbf24]" />
               <span className="text-[11px] font-black uppercase tracking-widest text-white">Level {level}!</span>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* live score bar */}
         {uiState === 'playing' && (
           <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between px-4 py-2 rounded-2xl border border-white/10 bg-black/60 backdrop-blur-sm">
             <div className="flex items-center gap-2">
@@ -822,13 +775,9 @@ function GameView({ onBack }: { onBack: () => void }) {
           </div>
         )}
       </div>
-
-      {/* controls hint */}
       <div className="mt-4 flex items-center gap-4 text-[9px] font-black uppercase text-white/20 tracking-widest flex-wrap justify-center px-4">
         <span>TAP = Jump</span><span>·</span><span>Double tap = Double jump</span><span>·</span><span>SPACE / ↑</span>
       </div>
-
-      {/* level progress */}
       {uiState === 'playing' && (
         <div className="mt-3 w-full px-4">
           <div className="h-1 bg-white/5 rounded-full overflow-hidden">
@@ -844,32 +793,20 @@ function GameView({ onBack }: { onBack: () => void }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   SLIDE VARIANTS
-───────────────────────────────────────────────────────── */
 const slideVariants = {
   enter: (direction: number) => ({ x: direction > 0 ? '100%' : '-100%', opacity: 0 }),
   center: { x: 0, opacity: 1 },
   exit: (direction: number) => ({ x: direction < 0 ? '100%' : '-100%', opacity: 0 }),
 };
 
-/* ─────────────────────────────────────────────────────────
-   HOME PAGE
-───────────────────────────────────────────────────────── */
 export default function Home() {
-  /*
-   * Navigation:
-   *   0 = Intro
-   *   1 = Browse
-   *   2 = Saved
-   *   3 = Game
-   */
   const [currentIndex, setCurrentIndex] = useState(1);
   const [direction, setDirection] = useState(0);
+
+  // Show splash on EVERY visit — start false to avoid SSR mismatch, set true in useEffect
   const [showSplash, setShowSplash] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
 
-  const [sessionReady, setSessionReady] = useState(false);
   const [rooms, setRooms] = useState<any[]>([]);
   const [roomsLoaded, setRoomsLoaded] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -896,24 +833,24 @@ export default function Home() {
 
   useEffect(() => { setSearchOpen(false); setSearchQuery(''); }, [currentIndex]);
 
-  /* Boot */
   useEffect(() => {
-    // Show splash only on very first ever visit
-    const hasSeen = localStorage.getItem('bb-splash-seen');
-    if (!hasSeen) {
-      setShowSplash(true);
-      localStorage.setItem('bb-splash-seen', '1');
-    } else {
-      setSplashDone(true);
-    }
+    // Always show splash on every fresh page load
+    setShowSplash(true);
 
-    setSessionReady(true);
+    // Mark session so AppGuard on room pages knows we came from within the app
+    sessionStorage.setItem('hasSeenIntro', 'true');
+
     const saved = JSON.parse(localStorage.getItem('savedRooms') || '[]');
     const av = parseInt(localStorage.getItem('avatarIndex') || '0');
     const seen2 = JSON.parse(localStorage.getItem('lastSeenMap') || '{}');
-    setSavedIds(saved); setAvatarIndex(av); setLastSeenMap(seen2);
+    setSavedIds(saved);
+    setAvatarIndex(av);
+    setLastSeenMap(seen2);
+
     const cached = localStorage.getItem('cachedRooms');
-    if (cached) { try { setRooms(JSON.parse(cached)); setRoomsLoaded(true); } catch { } }
+    if (cached) {
+      try { setRooms(JSON.parse(cached)); setRoomsLoaded(true); } catch { }
+    }
   }, []);
 
   const fetchRooms = useCallback(async (attempt = 0): Promise<void> => {
@@ -945,13 +882,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!sessionReady) return;
-    fetchRooms(); fetchBestContent();
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+    fetchRooms();
+    fetchBestContent();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
     return () => { if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current); };
-  }, [sessionReady, fetchRooms, fetchBestContent]);
+  }, [fetchRooms, fetchBestContent]);
 
-  /* Swipe */
   const handleSwipe = (_: any, info: { offset: { x: number }; velocity: { x: number } }) => {
     const { offset, velocity } = info;
     const isSwipe = Math.abs(offset.x) > 50 || Math.abs(velocity.x) > 300;
@@ -960,29 +898,38 @@ export default function Home() {
     else if (offset.x > 0 && currentIndex > 0) paginate(currentIndex - 1);
   };
 
-  /* Room actions */
   const handleCreateRoom = async () => {
     if (!newRoom.title.trim()) return alert('Title is required!');
     const res = await fetch(`${BASE_URL}/api/rooms`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newRoom) });
     if (!res.ok) return alert('Could not create room. Title may be taken.');
     const created = await res.json();
     const cs = JSON.parse(localStorage.getItem('savedRooms') || '[]');
-    if (!cs.includes(created._id)) { const upd = [...cs, created._id]; setSavedIds(upd); localStorage.setItem('savedRooms', JSON.stringify(upd)); }
+    if (!cs.includes(created._id)) {
+      const upd = [...cs, created._id];
+      setSavedIds(upd);
+      localStorage.setItem('savedRooms', JSON.stringify(upd));
+    }
     setNewRoom({ title: '', color: '#22c55e' }); setShowAddModal(false);
     fetchRooms(); paginate(2);
   };
 
   const markRoomSeen = (roomId: string) => {
     const upd = { ...lastSeenMap, [roomId]: Date.now() };
-    setLastSeenMap(upd); localStorage.setItem('lastSeenMap', JSON.stringify(upd));
+    setLastSeenMap(upd);
+    localStorage.setItem('lastSeenMap', JSON.stringify(upd));
   };
 
-  const selectAvatar = (idx: number) => { setAvatarIndex(idx); localStorage.setItem('avatarIndex', idx.toString()); setShowAvatarModal(false); };
+  const selectAvatar = (idx: number) => {
+    setAvatarIndex(idx);
+    localStorage.setItem('avatarIndex', idx.toString());
+    setShowAvatarModal(false);
+  };
 
   const toggleSave = async (id: string) => {
     const isSaved = savedIds.includes(id);
     const ns = isSaved ? savedIds.filter(i => i !== id) : [...savedIds, id];
-    setSavedIds(ns); localStorage.setItem('savedRooms', JSON.stringify(ns));
+    setSavedIds(ns);
+    localStorage.setItem('savedRooms', JSON.stringify(ns));
     setRooms(prev => prev.map(r => r._id === id ? { ...r, savedCount: Math.max(0, (r.savedCount || 0) + (isSaved ? -1 : 1)) } : r));
     try {
       await fetch(`${BASE_URL}/api/rooms/${id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: isSaved ? 'decrement' : 'increment' }) });
@@ -997,28 +944,24 @@ export default function Home() {
     .filter(r => r.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => currentIndex === 2 ? new Date(b.lastDropAt).getTime() - new Date(a.lastDropAt).getTime() : 0);
 
-  if (!sessionReady) return null;
-
   return (
     <>
-      {/* ── SPLASH (first visit only) ── */}
+      {/* Splash on every visit — client only, starts false so SSR is clean */}
       <AnimatePresence onExitComplete={() => setSplashDone(true)}>
         {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       </AnimatePresence>
 
-      <main className={`w-full max-w-md mx-auto min-h-screen pb-28 relative select-none overflow-x-hidden bg-black text-white transition-opacity duration-300 ${splashDone || !showSplash ? 'opacity-100' : 'opacity-0'}`}>
-
-        {/* ── STATIC HEADER ── */}
+      <main
+        suppressHydrationWarning
+        className={`w-full max-w-md mx-auto min-h-screen pb-28 relative select-none overflow-x-hidden bg-black text-white transition-opacity duration-300 ${splashDone || !showSplash ? 'opacity-100' : 'opacity-0'}`}
+      >
         <header className="pt-10 px-4 flex justify-center">
           <h1 className="text-3xl font-black tracking-tighter text-center">
             B<span className="mirror">L</span>ACK BOX
           </h1>
         </header>
 
-        {/* ── MULTI-TAB NAV ── */}
         <div className="flex justify-center items-center gap-3 mt-5 px-4 z-50 relative">
-
-          {/* Intro icon — index 0 */}
           <button
             onClick={() => paginate(0)}
             className={`w-10 h-10 rounded-full border flex items-center justify-center overflow-hidden shrink-0 transition-all ${currentIndex === 0 ? 'border-[#fac9f6] scale-110' : 'border-white/10 opacity-50'}`}
@@ -1026,8 +969,6 @@ export default function Home() {
           >
             <Image src="/logo 2.png" alt="Intro" width={24} height={24} style={{ mixBlendMode: 'screen' }} />
           </button>
-
-          {/* Browse / Saved capsule — indexes 1 & 2 */}
           <div className="relative flex items-center bg-[#111] border border-white/10 rounded-full p-1 flex-1 max-w-[220px]" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05)' }}>
             <motion.div
               className="absolute top-1 bottom-1 rounded-full bg-white/10"
@@ -1037,8 +978,6 @@ export default function Home() {
             <button onClick={() => paginate(1)} className={`relative z-10 flex-1 py-2 text-[11px] font-black uppercase tracking-widest rounded-full transition-colors duration-200 ${currentIndex === 1 ? 'text-[#fac9f6]' : 'text-white/40'}`}>Browse</button>
             <button onClick={() => paginate(2)} className={`relative z-10 flex-1 py-2 text-[11px] font-black uppercase tracking-widest rounded-full transition-colors duration-200 ${currentIndex === 2 ? 'text-[#fac9f6]' : 'text-white/40'}`}>Saved</button>
           </div>
-
-          {/* Game icon — index 3 */}
           <button
             onClick={() => paginate(3)}
             className={`w-10 h-10 rounded-full border flex items-center justify-center overflow-hidden shrink-0 transition-all ${currentIndex === 3 ? 'border-[#fac9f6] scale-110' : 'border-white/10 opacity-50'}`}
@@ -1047,7 +986,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* ── SWIPEABLE AREA ── */}
         <motion.div drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.1} onDragEnd={handleSwipe} className="relative mt-4 touch-pan-y w-full">
           <AnimatePresence initial={false} custom={direction} mode="wait">
             <motion.div
@@ -1058,11 +996,8 @@ export default function Home() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="w-full"
             >
-
-              {/* ══ VIEW 0: INTRO ══ */}
               {currentIndex === 0 && (
                 <div className="px-4 pt-6 pb-10 overflow-y-auto">
-                  {/* Hero */}
                   <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
                     className="rounded-[2rem] p-6 border border-white/10 relative overflow-hidden mb-2" style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #111 100%)' }}>
                     <div className="absolute inset-0 opacity-30" style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(250,201,246,0.15), transparent 60%)' }} />
@@ -1075,7 +1010,6 @@ export default function Home() {
                       <p className="text-[11px] text-white/50 leading-relaxed">Built for college & school students to chat, rant, and gossip freely — no accounts, no identity, no judgment.</p>
                     </div>
                   </motion.div>
-
                   <SectionLabel text="How It Works" />
                   <div className="flex flex-col gap-4">
                     <PosterCreateRoom onCreateRoom={() => { setShowAddModal(true); paginate(2); }} />
@@ -1083,16 +1017,13 @@ export default function Home() {
                     <PosterModeration />
                     <PosterPolls />
                   </div>
-
                   <SectionLabel text="The Builder" />
                   <DevProfile />
                 </div>
               )}
 
-              {/* ══ VIEW 1: BROWSE ══ */}
               {currentIndex === 1 && (
                 <div className="mt-5">
-                  {/* Search + Trending */}
                   <div className="px-4 flex items-center gap-2 h-11">
                     <button onClick={scrollToRooms} className="flex items-center gap-1.5 border border-white/10 bg-white/5 active:bg-white/10 px-3 h-full rounded-2xl text-[10px] font-black uppercase shrink-0 transition-all">
                       <Flame size={11} className="text-[#fac9f6]" fill="#fac9f6" />
@@ -1111,15 +1042,12 @@ export default function Home() {
                       </AnimatePresence>
                     </div>
                   </div>
-
                   <div className="px-4 mt-4">
                     <AnimatedBlurb onReadMore={() => paginate(0)} />
                   </div>
-
-                  {/* Best Drop */}
                   {bestDrop?.drop && (
                     <div className="px-4 mt-5">
-                      <div className="flex items-center gap-2 mb-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Today's Best Drop</span><div className="h-px flex-1 bg-white/10" /></div>
+                      <div className="flex items-center gap-2 mb-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Today&apos;s Best Drop</span><div className="h-px flex-1 bg-white/10" /></div>
                       {bestDrop.room && (
                         <Link href={`/room/${bestDrop.room.slug}`} className="flex items-center gap-2 mb-2 px-1">
                           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: bestDrop.room.color }} />
@@ -1149,11 +1077,9 @@ export default function Home() {
                       </motion.div>
                     </div>
                   )}
-
-                  {/* Best Poll */}
                   {bestPoll?.poll && (
                     <div className="px-4 mt-5">
-                      <div className="flex items-center gap-2 mb-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Today's Top Poll</span><div className="h-px flex-1 bg-white/10" /></div>
+                      <div className="flex items-center gap-2 mb-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Today&apos;s Top Poll</span><div className="h-px flex-1 bg-white/10" /></div>
                       {bestPoll.room && (
                         <Link href={`/room/${bestPoll.room.slug}`} className="flex items-center gap-2 mb-2 px-1">
                           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: bestPoll.room.color }} />
@@ -1197,8 +1123,6 @@ export default function Home() {
                       </motion.div>
                     </div>
                   )}
-
-                  {/* All Rooms */}
                   <div ref={roomsRef} className="px-4 mt-6">
                     <div className="flex items-center gap-3 mb-4"><div className="h-px flex-1 bg-white/10" /><span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">All Rooms</span><div className="h-px flex-1 bg-white/10" /></div>
                     {fetchError && rooms.length === 0 && (
@@ -1217,7 +1141,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ══ VIEW 2: SAVED ══ */}
               {currentIndex === 2 && (
                 <div className="px-4 mt-7 flex flex-col items-center gap-5">
                   <div className="flex flex-col items-center">
@@ -1226,7 +1149,6 @@ export default function Home() {
                     </div>
                     <button onClick={() => setShowAvatarModal(true)} className="mt-1.5 text-[9px] font-black uppercase text-white/30 tracking-widest">Edit Bitmoji</button>
                   </div>
-
                   <div className={`flex items-center w-full h-11 bg-white/5 rounded-2xl border border-white/10 transition-all duration-300 ${searchOpen ? 'ring-1 ring-[#fac9f6]/30 bg-white/10' : ''}`}>
                     <button onClick={() => setSearchOpen(p => !p)} className="w-11 h-full flex items-center justify-center shrink-0">
                       <Search size={16} className={searchOpen ? 'text-[#fac9f6]' : 'text-white/40'} />
@@ -1239,7 +1161,6 @@ export default function Home() {
                       )}
                     </AnimatePresence>
                   </div>
-
                   <div className="grid grid-cols-2 gap-4 w-full pb-24">
                     {fetchError && rooms.length === 0 && (
                       <div className="col-span-2 flex flex-col items-center gap-3 py-10">
@@ -1268,18 +1189,15 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ══ VIEW 3: GAME ══ */}
               {currentIndex === 3 && (
                 <div className="mt-4">
                   <GameView onBack={() => paginate(2)} />
                 </div>
               )}
-
             </motion.div>
           </AnimatePresence>
         </motion.div>
 
-        {/* ── FAB ── */}
         <AnimatePresence>
           {currentIndex === 2 && (
             <motion.button key="fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
@@ -1291,7 +1209,6 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* ── CREATE ROOM MODAL ── */}
         <AnimatePresence>
           {showAddModal && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1307,10 +1224,13 @@ export default function Home() {
                   placeholder="E.g. Library Gossips" value={newRoom.title} onChange={e => setNewRoom({ ...newRoom, title: e.target.value })} />
                 <label className="text-[10px] font-black uppercase text-white/40 mb-1.5 block">Theme Color</label>
                 <input type="color" className="w-full h-11 rounded-xl mb-5 cursor-pointer" value={newRoom.color} onChange={e => setNewRoom({ ...newRoom, color: e.target.value })} />
-                <p className="text-red-500 text-[10px] font-black uppercase mb-1">Don't forget to copy the link</p>
+                <p className="text-red-500 text-[10px] font-black uppercase mb-1">Don&apos;t forget to copy the link</p>
                 <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-3 rounded-xl mb-5">
                   <span className="text-[10px] text-white/50 font-mono truncate flex-1">blackbox-omega-peach.vercel.app/room/{newRoom.title.toLowerCase().replace(/ /g, '-')}</span>
-                  <button onClick={() => { navigator.clipboard.writeText(`blackbox-omega-peach.vercel.app/room/${newRoom.title.toLowerCase().replace(/ /g, '-')}`); setCopiedCreate(true); setTimeout(() => setCopiedCreate(false), 2000); }} className="shrink-0 p-1">
+                  <button onClick={() => {
+                    navigator.clipboard.writeText(`blackbox-omega-peach.vercel.app/room/${newRoom.title.toLowerCase().replace(/ /g, '-')}`);
+                    setCopiedCreate(true); setTimeout(() => setCopiedCreate(false), 2000);
+                  }} className="shrink-0 p-1">
                     {copiedCreate ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="text-white/40" />}
                   </button>
                 </div>
@@ -1320,7 +1240,6 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* ── AVATAR MODAL ── */}
         <AnimatePresence>
           {showAvatarModal && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
