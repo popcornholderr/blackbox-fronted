@@ -28,7 +28,7 @@ export default function IntroScreen({ onFinish }: { onFinish: () => void }) {
         }}
       />
       <h1
-        className="text-4xl font-black tracking-tighter select-none"
+        className="text-4xl font-black tracking-tighter select-none text-white"
         style={{
           opacity: phase === 'in' ? 0 : 1,
           transform: phase === 'in' ? 'scale(0.85)' : 'scale(1)',
