@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import IntroScreen from "./IntroScreen";
 
-// Pass isSharedLink=true from room pages opened via direct URL
 export default function AppGuard({
   children,
   isSharedLink = false,
@@ -11,15 +10,17 @@ export default function AppGuard({
   isSharedLink?: boolean;
 }) {
   const [showIntro, setShowIntro] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const hasSeenIntro = sessionStorage.getItem('hasSeenIntro');
-    // Show intro if never seen this session OR if it's a shared link (direct URL)
-    if (!hasSeenIntro || isSharedLink) {
-      setShowIntro(true);
+    if (isSharedLink) {
+      // sessionStorage is cleared on every new tab/browser open.
+      // So direct room links always show intro on fresh visits,
+      // but NOT when navigating from within the app same session.
+      const hasSeen = sessionStorage.getItem('hasSeenIntro');
+      if (!hasSeen) {
+        setShowIntro(true);
+      }
     }
-    setLoading(false);
   }, [isSharedLink]);
 
   const handleFinish = () => {
@@ -27,7 +28,11 @@ export default function AppGuard({
     setShowIntro(false);
   };
 
-  if (loading) return null;
-  if (showIntro) return <IntroScreen onFinish={handleFinish} />;
-  return <>{children}</>;
+  // Always render children — intro overlays on top via position:fixed
+  return (
+    <>
+      {showIntro && <IntroScreen onFinish={handleFinish} />}
+      {children}
+    </>
+  );
 }
