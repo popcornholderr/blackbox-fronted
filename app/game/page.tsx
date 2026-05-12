@@ -86,18 +86,29 @@ export default function GamePage() {
   }, []);
 
   const jump = useCallback(() => {
-    const g = gameRef.current;
-    if (!g.started) {
-      g.started = true; g.running = true;
-      setUiState('playing');
-    }
-    if (g.over) return;
-    if (!g.jumping) {
-      g.cubeVY = JUMP_FORCE; g.jumping = true; g.doubleAvail = true;
-    } else if (g.doubleAvail) {
-      g.cubeVY = DOUBLE_JUMP_FORCE; g.doubleAvail = false;
-    }
-  }, []);
+  const g = gameRef.current;
+  
+  // This handles the "Tap to Start" transition
+  if (!g.started || uiState === 'idle') {
+    g.started = true;
+    g.running = true;
+    setUiState('playing');
+    // Optional: add a tiny initial jump so it feels responsive
+    g.cubeVY = JUMP_FORCE; 
+    return;
+  }
+
+  if (g.over) return;
+
+  if (!g.jumping) {
+    g.cubeVY = JUMP_FORCE;
+    g.jumping = true;
+    g.doubleAvail = true;
+  } else if (g.doubleAvail) {
+    g.cubeVY = DOUBLE_JUMP_FORCE;
+    g.doubleAvail = false;
+  }
+}, [uiState]); // Add uiState to dependencies
 
   const resetGame = () => {
     const g = gameRef.current;
@@ -198,13 +209,29 @@ export default function GamePage() {
       </header>
 
       <motion.div 
-        className="relative mt-8 flex items-center justify-center"
-        style={{ width: W, height: H, touchAction: 'none' }}
-        onPointerDown={(e) => { e.preventDefault(); jump(); }}
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        onDragEnd={(_, info) => { if (info.offset.x > 80) router.push('/?tab=browse'); }}
-      >
+  className="relative mt-8 flex items-center justify-center"
+  style={{ 
+    width: W, 
+    height: H, 
+    touchAction: 'none', // Prevents browser pull-to-refresh
+    userSelect: 'none',  // Prevents text selection highlighting
+    WebkitTapHighlightColor: 'transparent' // Removes the blue flash on tap
+  }}
+  // Use capture phase to ensure the jump fires before drag logic intercepts
+  onPointerDownCapture={(e) => {
+    // Only jump if we aren't clicking a button (like Retry)
+    if ((e.target as HTMLElement).tagName !== 'BUTTON') {
+      jump();
+    }
+  }}
+  drag="x"
+  dragConstraints={{ left: 0, right: 0 }}
+  dragElastic={0.1}
+  onDragEnd={(_, info) => { 
+    // Increased threshold to 100 to prevent accidental exits during fast gameplay
+    if (info.offset.x > 100) router.push('/?tab=browse'); 
+  }}
+>
         <canvas ref={canvasRef} width={W} height={H} className="rounded-3xl border border-white/10" />
 
         {uiState === 'idle' && (
