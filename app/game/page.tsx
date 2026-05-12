@@ -392,13 +392,20 @@ export default function GamePage() {
 
       {/* GAME AREA — wrapped in motion.div for swipe gesture */}
       <motion.div
-        className="relative mt-4"
-        style={{ width: W, height: H }}
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.1}
-        onDragEnd={handleSwipe}
-      >
+  className="relative mt-4"
+  style={{ width: W, height: H }}
+  drag="x"
+  dragConstraints={{ left: 0, right: 0 }}
+  dragElastic={0.1}
+  dragDirectionLock
+  onDragEnd={handleSwipe}
+  onPointerDown={(e) => {
+    // If user taps/clicks directly on the canvas, trigger jump immediately
+    if ((e.target as HTMLElement).tagName === "CANVAS") {
+      jump();
+    }
+  }}
+>
         <canvas
           ref={canvasRef}
           width={W}
