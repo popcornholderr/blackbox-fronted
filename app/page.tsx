@@ -789,7 +789,7 @@ function GameView({ onBack }: { onBack: () => void }) {
               <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-1">BlackBox Runner</h2>
               <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest mb-6">50 levels · tap to start</p>
               <div className="flex flex-col items-center gap-1.5 mb-6">
-                {[['👆','Tap = Jump'],['✌️','Double tap = Double jump'],['👇','Swipe down = Crouch']].map(([icon, text]) => (
+                {[['Tap = Jump'],['Double tap = Double jump'],['Swipe down = Crouch']].map(([icon, text]) => (
                   <div key={text} className="flex items-center gap-2">
                     <span className="text-sm">{icon}</span>
                     <span className="text-[9px] font-black uppercase text-white/35 tracking-widest">{text}</span>
@@ -850,7 +850,7 @@ function GameView({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="mt-4 flex items-center gap-3 text-[9px] font-black uppercase text-white/20 tracking-widest flex-wrap justify-center px-4">
-        <span>👆 Tap = Jump</span><span>·</span><span>✌️ Double tap = Double jump</span>
+        <span> Tap = Jump</span><span>·</span><span> Double tap = Double jump</span>
       </div>
       {uiState === 'playing' && (
         <div className="mt-3 w-full px-4">
