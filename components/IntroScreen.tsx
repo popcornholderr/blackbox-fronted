@@ -4,12 +4,17 @@ import { useEffect, useState } from "react";
 export default function IntroScreen({ onFinish }: { onFinish: () => void }) {
   const [phase, setPhase] = useState<'in' | 'hold' | 'out'>('in');
 
-  useEffect(() => {
-    const t1 = setTimeout(() => setPhase('hold'), 400);
-    const t2 = setTimeout(() => setPhase('out'), 1600);
-    const t3 = setTimeout(() => onFinish(), 2200);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [onFinish]);
+useEffect(() => {
+  const t1 = setTimeout(() => setPhase('hold'), 100);
+  const t2 = setTimeout(() => setPhase('out'), 100);
+  const t3 = setTimeout(() => onFinish(), 100);
+
+  return () => {
+    clearTimeout(t1);
+    clearTimeout(t2);
+    clearTimeout(t3);
+  };
+}, [onFinish]);
 
   return (
     <div
