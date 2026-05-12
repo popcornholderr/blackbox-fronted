@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Heart, ThumbsDown, Copy, Plus, X, ArrowLeft, Check, MessageCircle, BarChart2, Users } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import IntroScreen from '@/components/IntroScreen';
+import AppGuard from '@/components/AppGuard';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const POLL_MS = 3000;
@@ -27,7 +27,6 @@ function formatTime(d: string) {
   return new Date(d).toLocaleDateString();
 }
 
-/* Highlights the abusive word red inside the error string */
 function ErrorMsg({ text, word }: { text: string; word?: string | null }) {
   if (!word) return <span className="text-red-500">{text}</span>;
   const lower = text.toLowerCase();
@@ -42,14 +41,10 @@ function ErrorMsg({ text, word }: { text: string; word?: string | null }) {
   );
 }
 
-/* ── main ───────────────────────────────────────────────── */
-export default function RoomPage() {
+/* ── RoomContent: the actual room UI ───────────────────── */
+function RoomContent() {
   const { slug } = useParams();
   const router = useRouter();
-
-  /* intro: show on shared links (no prior session) */
-  const [showIntro, setShowIntro] = useState(false);
-  const [sessionReady, setSessionReady] = useState(false);
 
   const [data, setData] = useState<any>(null);
   const [showDropModal, setShowDropModal] = useState(false);
@@ -57,13 +52,11 @@ export default function RoomPage() {
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Drop form
   const [dropName, setDropName] = useState("");
   const [dropContent, setDropContent] = useState("");
   const [dropError, setDropError] = useState<string | null>(null);
   const [dropBadWord, setDropBadWord] = useState<string | null>(null);
 
-  // Poll form
   const [pollName, setPollName] = useState("");
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
@@ -78,16 +71,11 @@ export default function RoomPage() {
 
   const userId = getOrCreateUserId();
 
-  /* session / intro check */
   useEffect(() => {
-    const seen = sessionStorage.getItem('hasSeenIntro');
-    if (!seen) setShowIntro(true);
-    setSessionReady(true);
     const sd = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
     setSeenDrops(sd);
   }, [slug]);
 
-  /* fetch room */
   const fetchRoom = async (silent = false) => {
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${slug}`);
@@ -109,13 +97,11 @@ export default function RoomPage() {
   };
 
   useEffect(() => {
-    if (!sessionReady) return;
     fetchRoom(false);
     timerRef.current = setInterval(() => fetchRoom(true), POLL_MS);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [slug, sessionReady]);
+  }, [slug]);
 
-  /* mark drops seen on leave */
   useEffect(() => {
     const mark = () => {
       if (!data) return;
@@ -127,7 +113,6 @@ export default function RoomPage() {
     return () => window.removeEventListener("beforeunload", mark);
   }, [data, slug]);
 
-  /* vote on drop */
   const handleVote = async (dropId: string, type: 'likes' | 'dislikes', e: React.MouseEvent) => {
     e.stopPropagation();
     await fetch(`${BASE_URL}/api/drops/${dropId}/vote`, {
@@ -137,7 +122,6 @@ export default function RoomPage() {
     fetchRoom(true);
   };
 
-  /* vote on poll */
   const handlePollVote = async (pollId: string, optionIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
     await fetch(`${BASE_URL}/api/polls/${pollId}/vote`, {
@@ -147,7 +131,6 @@ export default function RoomPage() {
     fetchRoom(true);
   };
 
-  /* create drop */
   const handleDrop = async () => {
     if (!dropContent.trim()) return;
     setDropError(null); setDropBadWord(null);
@@ -165,7 +148,6 @@ export default function RoomPage() {
     fetchRoom(true);
   };
 
-  /* create poll */
   const handleCreatePoll = async () => {
     const opts = pollOptions.filter(o => o.trim());
     if (!pollQuestion.trim()) { setPollError("Question is required."); return; }
@@ -196,16 +178,12 @@ export default function RoomPage() {
     return { backgroundColor: `${data.room.color}${op[index % op.length]}`, borderLeft: `4px solid ${data.room.color}40` };
   };
 
-  /* loading */
-  if (!sessionReady) return null;
-  if (showIntro) return <IntroScreen onFinish={() => { sessionStorage.setItem('hasSeenIntro', 'true'); setShowIntro(false); }} />;
   if (!data) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-xl font-black italic animate-pulse uppercase tracking-tighter">Fetching Drops...</div>
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="text-xl font-black italic animate-pulse uppercase tracking-tighter text-white">Fetching Drops...</div>
     </div>
   );
 
-  /* merge feed */
   const drops = (data.drops || []).map((d: any) => ({ ...d, _type: 'drop' }));
   const polls = (data.polls || []).map((p: any) => ({ ...p, _type: 'poll' }));
   const feed = [...drops, ...polls].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -280,7 +258,6 @@ export default function RoomPage() {
             );
           }
 
-          // DROP CARD
           const dropId = String(item._id).trim();
           const hasLiked = item.likes.includes(userId);
           const hasDisliked = item.dislikes.includes(userId);
@@ -313,7 +290,7 @@ export default function RoomPage() {
                       <Heart size={12} fill={hasLiked ? "currentColor" : "none"} /> {item.likes.length}
                     </button>
                     <button onClick={(e) => handleVote(dropId, 'dislikes', e)} className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}>
-                      <ThumbsDown size={12} fill={hasDisliked ? "currentColor" : "none"} /> {item.dislikes.length}
+                      <Heart size={12} fill={hasDisliked ? "currentColor" : "none"} className="rotate-180" /> {item.dislikes.length}
                     </button>
                   </div>
                   <span className="text-[8px] font-black uppercase text-white/25">{formatTime(item.createdAt)}</span>
@@ -427,7 +404,6 @@ export default function RoomPage() {
                   <button onClick={() => setPollOptions(p => [...p, ""])} className="text-[10px] font-black uppercase text-[#a78bfa] tracking-widest text-left mt-1">+ Add option</button>
                 )}
               </div>
-              {/* Multiple choice toggle */}
               <div className="flex items-center gap-3 mb-6 p-4 rounded-xl border border-white/10 bg-black/30">
                 <button onClick={() => setPollMultiple(p => !p)}
                   className={`w-10 h-5 rounded-full relative transition-all ${pollMultiple ? 'bg-[#a78bfa]' : 'bg-white/10'}`}>
@@ -452,5 +428,18 @@ export default function RoomPage() {
         )}
       </AnimatePresence>
     </main>
+  );
+}
+
+/* ── Main export: wrap in AppGuard with isSharedLink=true ─ */
+// isSharedLink=true means: show the BLACK BOX intro splash only when
+// someone opens this room via a direct/shared URL (first time this session).
+// If they navigate to this room FROM within the app, AppGuard sees
+// hasSeenIntro already set in sessionStorage and skips the splash.
+export default function RoomPage() {
+  return (
+    <AppGuard isSharedLink={true}>
+      <RoomContent />
+    </AppGuard>
   );
 }
