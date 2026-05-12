@@ -62,12 +62,11 @@ function getObstacle(lvl: number, startX: number): Obstacle {
 /* draw 3D cube on canvas */
 function drawCube(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number, accent: string, jumping: boolean) {
   const s = size;
-  const d = s * 0.3; // depth perspective
+  const d = s * 0.3;
   ctx.save();
   ctx.translate(x + s / 2, y + s / 2);
   ctx.rotate(jumping ? rot * 0.08 : rot * 0.03);
 
-  // front face
   ctx.fillStyle = '#1a1a1a';
   ctx.strokeStyle = accent;
   ctx.lineWidth = 1.5;
@@ -76,7 +75,6 @@ function drawCube(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   ctx.fill();
   ctx.stroke();
 
-  // top face
   ctx.beginPath();
   ctx.moveTo(-s / 2, -s / 2);
   ctx.lineTo(-s / 2 + d, -s / 2 - d);
@@ -88,7 +86,6 @@ function drawCube(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   ctx.strokeStyle = accent + '88';
   ctx.stroke();
 
-  // right face
   ctx.beginPath();
   ctx.moveTo(s / 2, -s / 2);
   ctx.lineTo(s / 2 + d, -s / 2 - d);
@@ -100,7 +97,6 @@ function drawCube(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   ctx.strokeStyle = accent + '66';
   ctx.stroke();
 
-  // inner glow on front face
   ctx.beginPath();
   ctx.rect(-s / 2 + 3, -s / 2 + 3, s - 6, s - 6);
   ctx.strokeStyle = accent + '44';
@@ -145,7 +141,6 @@ export default function GamePage() {
     setHighScore(hs);
 
     const g = gameRef.current;
-    // init stars
     g.stars = Array.from({ length: 60 }, () => ({
       x: Math.random() * W, y: Math.random() * (GROUND_Y - 60),
       r: Math.random() * 1.5 + 0.5, op: Math.random() * 0.6 + 0.2,
@@ -190,7 +185,6 @@ export default function GamePage() {
     g.jumping = false; g.doubleAvail = true;
     g.obstacles = []; g.particles = [];
     g.score = 0; g.dist = 0; g.level = 1; g.nextLevelDist = 500;
-    // ── FIX: 180 frames ≈ 3 seconds of clear road before first obstacle ──
     g.spawnCooldown = 180;
     g.cubeRot = 0; g.bgOffset = 0;
     prevLevelRef.current = 1;
@@ -209,11 +203,9 @@ export default function GamePage() {
       const spd = cfg.speed;
       const acc = cfg.accentColor;
 
-      /* ── clear ── */
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
 
-      /* ── stars ── */
       g.stars.forEach(s => {
         s.x -= 0.3;
         if (s.x < 0) { s.x = W; s.y = Math.random() * (GROUND_Y - 60); }
@@ -223,7 +215,6 @@ export default function GamePage() {
         ctx.fill();
       });
 
-      /* ── scroll lines (speed-lines) ── */
       g.scrollLines.forEach(l => {
         if (!g.running) return;
         l.x -= l.speed * (spd / BASE_SPEED);
@@ -235,10 +226,8 @@ export default function GamePage() {
         ctx.stroke();
       });
 
-      /* ── ground ── */
       ctx.fillStyle = '#111';
       ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
-      // ground line glow
       ctx.shadowColor = acc;
       ctx.shadowBlur = 6;
       ctx.strokeStyle = acc + '60';
@@ -246,7 +235,6 @@ export default function GamePage() {
       ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(W, GROUND_Y); ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // ground grid
       const gx = ((g.bgOffset * 0.5) % 60);
       ctx.strokeStyle = 'rgba(255,255,255,0.04)';
       ctx.lineWidth = 0.5;
@@ -257,7 +245,6 @@ export default function GamePage() {
       if (g.running && !g.over) {
         g.bgOffset += spd;
 
-        /* ── physics ── */
         g.cubeVY += GRAVITY;
         g.cubeY += g.cubeVY;
         if (g.cubeY >= GROUND_Y - CUBE_SIZE) {
@@ -265,11 +252,9 @@ export default function GamePage() {
         }
         g.cubeRot += 2;
 
-        /* ── spawn obstacles ── */
         g.spawnCooldown--;
         if (g.spawnCooldown <= 0 && g.obstacles.length < 4) {
           g.obstacles.push(getObstacle(g.level, W + 40));
-          // double type: spawn second right after
           const last = g.obstacles[g.obstacles.length - 1];
           if (last.type === 'double') {
             g.obstacles.push({ ...getObstacle(g.level, W + 40 + last.w + 28), type: 'low', color: acc });
@@ -277,11 +262,9 @@ export default function GamePage() {
           g.spawnCooldown = cfg.gap / spd;
         }
 
-        /* ── move obstacles ── */
         g.obstacles = g.obstacles.filter(o => o.x + o.w > -10);
         g.obstacles.forEach(o => { o.x -= spd; });
 
-        /* ── score / level ── */
         g.dist += spd;
         g.score = Math.floor(g.dist / 10);
 
@@ -297,16 +280,13 @@ export default function GamePage() {
         }
         setScore(g.score);
 
-        /* ── particles ── */
         g.particles = g.particles.filter(p => p.life > 0);
         g.particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life -= 0.05; });
 
-        /* ── collision ── */
         const cx = 36, cy = g.cubeY, cw = CUBE_SIZE, ch = CUBE_SIZE;
         for (const o of g.obstacles) {
           if (cx + cw - 4 > o.x + 3 && cx + 4 < o.x + o.w - 3 && cy + ch - 4 > o.y + 3 && cy + 4 < o.y + o.h - 3) {
             g.over = true; g.running = false;
-            // death particles
             for (let i = 0; i < 20; i++) {
               g.particles.push({ x: cx + cw / 2, y: cy + ch / 2, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, life: 1, maxLife: 1, color: acc, r: Math.random() * 4 + 1 });
             }
@@ -318,7 +298,6 @@ export default function GamePage() {
         }
       }
 
-      /* ── draw obstacles ── */
       g.obstacles.forEach(o => {
         ctx.shadowColor = o.color;
         ctx.shadowBlur = 8;
@@ -329,18 +308,15 @@ export default function GamePage() {
         ctx.roundRect(o.x, o.y, o.w, o.h, 4);
         ctx.fill(); ctx.stroke();
         ctx.shadowBlur = 0;
-        // inner detail
         ctx.strokeStyle = o.color + '44';
         ctx.lineWidth = 0.5;
         ctx.beginPath(); ctx.roundRect(o.x + 3, o.y + 3, o.w - 6, o.h - 6, 2); ctx.stroke();
       });
 
-      /* ── draw cube ── */
       ctx.shadowColor = acc; ctx.shadowBlur = 12;
       drawCube(ctx, 36, g.cubeY, CUBE_SIZE, g.cubeRot, acc, g.jumping);
       ctx.shadowBlur = 0;
 
-      /* ── draw particles ── */
       g.particles.forEach(p => {
         ctx.globalAlpha = p.life;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
@@ -348,7 +324,6 @@ export default function GamePage() {
       });
       ctx.globalAlpha = 1;
 
-      /* ── HUD ── */
       if (g.started) {
         ctx.font = 'bold 13px monospace';
         ctx.fillStyle = acc;
@@ -366,7 +341,7 @@ export default function GamePage() {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  /* input */
+  /* keyboard input */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } };
     window.addEventListener('keydown', onKey);
@@ -376,6 +351,21 @@ export default function GamePage() {
   const handleTap = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault(); jump();
   }, [jump]);
+
+  // ── SWIPE HANDLER ──
+  // Chain: /intro ← browse ← saved ← /game
+  // Swipe RIGHT = go back to browse tab on home page
+  // Swipe LEFT  = already at rightmost edge, do nothing
+  const handleSwipe = useCallback((_: any, info: { offset: { x: number }; velocity: { x: number } }) => {
+    const isSwipe = Math.abs(info.offset.x) > 50 || Math.abs(info.velocity.x) > 300;
+    if (!isSwipe) return;
+    if (info.offset.x > 0) {
+      // Swipe RIGHT → go back to browse tab
+      cancelAnimationFrame(rafRef.current);
+      router.push('/?tab=browse');
+    }
+    // Swipe LEFT on game page = rightmost edge, no action
+  }, [router]);
 
   return (
     <main className="min-h-screen bg-black flex flex-col items-center select-none">
@@ -400,8 +390,15 @@ export default function GamePage() {
         </div>
       </header>
 
-      {/* GAME AREA */}
-      <div className="relative mt-4" style={{ width: W, height: H }}>
+      {/* GAME AREA — wrapped in motion.div for swipe gesture */}
+      <motion.div
+        className="relative mt-4"
+        style={{ width: W, height: H }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.1}
+        onDragEnd={handleSwipe}
+      >
         <canvas
           ref={canvasRef}
           width={W}
@@ -409,19 +406,6 @@ export default function GamePage() {
           style={{ display: 'block', touchAction: 'none', borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}
           onTouchStart={handleTap}
           onClick={handleTap}
-        />
-
-        {/* cube logo overlay */}
-        <div
-          className="pointer-events-none absolute"
-          style={{
-            left: 36 + CUBE_SIZE / 2 - 10,
-            top: 0,
-            width: 20,
-            height: 20,
-            transform: `translateY(${gameRef.current.cubeY + CUBE_SIZE / 2 - 10}px)`,
-            opacity: 0.7,
-          }}
         />
 
         {/* IDLE overlay */}
@@ -445,6 +429,14 @@ export default function GamePage() {
               <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.4, repeat: Infinity }}
                 className="text-[13px] font-black uppercase tracking-[0.3em] text-white/60">
                 TAP / SPACE to start
+              </motion.div>
+              {/* Swipe hint */}
+              <motion.div
+                className="absolute bottom-5 right-5 flex items-center gap-1"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}
+              >
+                <motion.span className="text-[9px] font-black uppercase text-white/20" animate={{ x: [-3, 0, -3] }} transition={{ duration: 1.2, repeat: Infinity }}>←</motion.span>
+                <span className="text-[9px] font-black uppercase text-white/20 tracking-widest">swipe right to go back</span>
               </motion.div>
             </motion.div>
           )}
@@ -525,7 +517,7 @@ export default function GamePage() {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* controls hint */}
       <div className="mt-4 flex items-center gap-6 text-[9px] font-black uppercase text-white/20 tracking-widest">
