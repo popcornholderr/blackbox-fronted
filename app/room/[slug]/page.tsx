@@ -63,6 +63,24 @@ function PrivateRoomGate({
   const [reqName, setReqName] = useState('');
   const [reqError, setReqError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [alreadyApproved, setAlreadyApproved] = useState(false);
+  const [checkingApproval, setCheckingApproval] = useState(true);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-request/${userId}`);
+        const data = await res.json();
+        if (data.status === 'approved') setAlreadyApproved(true);
+      } catch {
+        // treat as not approved
+      } finally {
+        setCheckingApproval(false);
+      }
+    };
+    check();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAdminCode = async () => {
     if (!code.trim()) { setCodeError('Enter the admin code.'); return; }
@@ -131,7 +149,6 @@ function PrivateRoomGate({
 
         {mode === 'choose' && (
           <div className="rounded-[2rem] border border-white/10 p-6 bg-[#0a0a0a] flex flex-col gap-3">
-            {/* Admin code option */}
             <button
               onClick={() => setMode('admin')}
               className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#60a5fa]/25 bg-[#60a5fa]/5 active:scale-[0.98] transition-all text-left"
@@ -151,39 +168,40 @@ function PrivateRoomGate({
               <div className="flex-1 h-px bg-white/10" />
             </div>
 
-            {/* Enter room directly */}
-            <button
-              onClick={handleEnterRoom}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.03] active:scale-[0.98] transition-all text-left"
-            >
-              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                <UserCheck size={18} className="text-white/50" />
+            {checkingApproval ? (
+              <div className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.03] opacity-40">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                  <Users size={18} className="text-white/50" />
+                </div>
+                <p className="text-[12px] font-black uppercase text-white/50 animate-pulse">Checking...</p>
               </div>
-              <div>
-                <p className="text-[12px] font-black uppercase text-white/80">Enter the Room</p>
-                <p className="text-[9px] text-white/35">Already approved — go right in</p>
-              </div>
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-[9px] font-black text-white/25 uppercase tracking-widest">or</span>
-              <div className="flex-1 h-px bg-white/10" />
-            </div>
-
-            {/* Request to join */}
-            <button
-              onClick={() => setMode('request')}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.03] active:scale-[0.98] transition-all text-left"
-            >
-              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                <Users size={18} className="text-white/50" />
-              </div>
-              <div>
-                <p className="text-[12px] font-black uppercase text-white/80">Request to Join</p>
-                <p className="text-[9px] text-white/35">Submit your name and wait for approval</p>
-              </div>
-            </button>
+            ) : alreadyApproved ? (
+              <button
+                onClick={handleEnterRoom}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-green-500/25 bg-green-500/5 active:scale-[0.98] transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
+                  <UserCheck size={18} className="text-green-400" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-black uppercase text-white/80">Enter the Room</p>
+                  <p className="text-[9px] text-white/35">You&apos;re approved — go right in</p>
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={() => setMode('request')}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.03] active:scale-[0.98] transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                  <Users size={18} className="text-white/50" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-black uppercase text-white/80">Request to Join</p>
+                  <p className="text-[9px] text-white/35">Submit your name and wait for approval</p>
+                </div>
+              </button>
+            )}
           </div>
         )}
 
@@ -352,8 +370,15 @@ function RoomContent() {
   const [copied, setCopied] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
 
-  // Always false on mount — gate shows every visit for private rooms, no exceptions
-  const [gateCleared, setGateCleared] = useState(false);
+  // ── KEY FIX: gateCleared is seeded from sessionStorage on mount.
+  // When the user navigates to a drop-detail and presses Back, Next.js
+  // remounts RoomContent. We check sessionStorage so the gate is
+  // skipped automatically — the user already passed it this session.
+  const GATE_KEY = `gateCleared-${slug}`;
+  const [gateCleared, setGateCleared] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem(GATE_KEY) === '1';
+  });
 
   const [dropName, setDropName] = useState('');
   const [dropContent, setDropContent] = useState('');
@@ -372,7 +397,9 @@ function RoomContent() {
   const knownIdsRef = useRef<Set<string>>(new Set());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Key for scroll position of THIS room page
   const ROOM_SCROLL_KEY = `scrollPos-room-${slug}`;
+
   const userId = getOrCreateUserId();
 
   useEffect(() => {
@@ -380,9 +407,10 @@ function RoomContent() {
     setSeenDrops(sd);
   }, [slug]);
 
-  // Restore room scroll when coming back from a drop-detail page
+  // ── Restore room scroll when coming back from a drop-detail page ──
   useEffect(() => {
     if (!data) return;
+    // Only attempt restore after gate is cleared
     if (data.room?.isPrivate && !gateCleared) return;
 
     const saved = sessionStorage.getItem(ROOM_SCROLL_KEY);
@@ -437,10 +465,12 @@ function RoomContent() {
     return () => window.removeEventListener('beforeunload', mark);
   }, [data, slug]);
 
+  // ── Persist gate clearance so back-nav from drop detail skips it ──
   const handleGateGranted = useCallback((adminFlag: boolean) => {
+    sessionStorage.setItem(GATE_KEY, '1');
     setGateCleared(true);
     if (adminFlag) setShowAdminPanel(true);
-  }, []);
+  }, [GATE_KEY]);
 
   const handleBack = () => {
     if (data) {
@@ -513,6 +543,7 @@ function RoomContent() {
     fetchRoom(true);
   };
 
+  // ── Save THIS room's scroll before navigating into a drop ──
   const navigateToDrop = (dropId: string) => {
     sessionStorage.setItem(ROOM_SCROLL_KEY, String(window.scrollY));
     const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
@@ -538,7 +569,7 @@ function RoomContent() {
     );
   }
 
-  // Always show gate for private rooms unless cleared this visit
+  // ── Show gate only for private rooms that haven't been cleared this session ──
   if (data.room.isPrivate && !gateCleared) {
     return (
       <PrivateRoomGate
