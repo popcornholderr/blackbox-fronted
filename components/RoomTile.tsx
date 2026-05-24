@@ -1,7 +1,7 @@
 "use client";
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Bookmark, Share2, Check } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const getContrastColor = (hexcolor: string) => {
   if (!hexcolor) return "#ffffff";
@@ -12,118 +12,152 @@ const getContrastColor = (hexcolor: string) => {
   return yiq >= 128 ? "#000000" : "#ffffff";
 };
 
-/* ── Visibility badge: Public or Private ── */
+/* ── PRIVATE: Glassy lock with keyhole ── */
 function VisibilityBadge({ isPrivate }: { isPrivate: boolean }) {
   if (isPrivate) {
     return (
       <div
-        className="flex items-center gap-1 px-2 py-1 rounded-xl"
+        className="flex items-center justify-center w-7 h-7 rounded-xl"
         style={{
-          background: 'rgba(8,12,24,0.78)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(96,165,250,0.5)',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+          background: 'rgba(8,12,28,0.72)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(96,165,250,0.45)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
         }}
       >
-        <svg width="9" height="10" viewBox="0 0 9 10" fill="none">
-          <rect x="1" y="4" width="7" height="5.5" rx="1.6" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" strokeWidth="1.1"/>
-          <path d="M2.8 4V3C2.8 1.9 6.2 1.9 6.2 3v1" stroke="#60a5fa" strokeWidth="1.1" strokeLinecap="round"/>
-          <circle cx="4.5" cy="6.7" r="0.75" fill="#93c5fd"/>
+        {/* Lock body */}
+        <svg width="13" height="14" viewBox="0 0 13 14" fill="none">
+          <rect x="1.5" y="6" width="10" height="7" rx="2.2" fill="rgba(96,165,250,0.18)" stroke="#60a5fa" strokeWidth="1.15"/>
+          <path d="M3.8 6V4.5C3.8 2.84 9.2 2.84 9.2 4.5V6" stroke="#60a5fa" strokeWidth="1.15" strokeLinecap="round"/>
+          <circle cx="6.5" cy="9.4" r="1.1" fill="#93c5fd"/>
+          <rect x="5.9" y="9.6" width="1.2" height="1.8" rx="0.6" fill="#93c5fd"/>
         </svg>
-        <span className="text-[7.5px] font-black uppercase tracking-wider" style={{ color: '#93c5fd', letterSpacing: '0.08em' }}>Private</span>
       </div>
     );
   }
-  // Public
+  /* PUBLIC: Glassy globe with latitude/longitude lines */
   return (
     <div
-      className="flex items-center gap-1 px-2 py-1 rounded-xl"
+      className="flex items-center justify-center w-7 h-7 rounded-xl"
       style={{
-        background: 'rgba(4,8,18,0.78)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(250,201,246,0.35)',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+        background: 'rgba(4,8,20,0.72)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(250,201,246,0.38)',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)',
       }}
     >
-      <svg width="10" height="9" viewBox="0 0 10 9" fill="none">
-        <circle cx="5" cy="4.5" r="3.6" stroke="#fac9f6" strokeWidth="1.1" fill="none"/>
-        <path d="M5 0.9C5 0.9 3 2.5 3 4.5s2 3.6 2 3.6" stroke="#fac9f6" strokeWidth="0.9" fill="none"/>
-        <path d="M5 0.9C5 0.9 7 2.5 7 4.5s-2 3.6-2 3.6" stroke="#fac9f6" strokeWidth="0.9" fill="none"/>
-        <line x1="1.4" y1="4.5" x2="8.6" y2="4.5" stroke="#fac9f6" strokeWidth="0.9"/>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="7" r="5.4" stroke="#fac9f6" strokeWidth="1.1" fill="rgba(250,201,246,0.06)"/>
+        {/* equator */}
+        <path d="M1.6 7 Q4 5.2 7 7 Q10 8.8 12.4 7" stroke="#fac9f6" strokeWidth="0.8" fill="none"/>
+        {/* meridian */}
+        <path d="M7 1.6 Q5.2 4 7 7 Q8.8 10 7 12.4" stroke="#fac9f6" strokeWidth="0.8" fill="none"/>
+        {/* top shine */}
+        <path d="M5 3.2 Q6 2.6 8 3" stroke="rgba(250,201,246,0.5)" strokeWidth="0.6" strokeLinecap="round"/>
       </svg>
-      <span className="text-[7.5px] font-black uppercase tracking-wider" style={{ color: '#fac9f6', letterSpacing: '0.08em' }}>Public</span>
     </div>
   );
 }
 
-/* ── Content badge: Safe or 18+ ── */
+/* ── SAFE: Shield with checkmark ── */
+/* ── ADULT: Flame icon ── */
 function ContentBadge({ isAdult }: { isAdult: boolean }) {
   if (isAdult) {
     return (
       <div
-        className="flex items-center gap-1 px-2 py-1 rounded-xl"
+        className="flex items-center justify-center w-7 h-7 rounded-xl"
         style={{
-          background: 'rgba(20,4,4,0.78)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(239,68,68,0.55)',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
+          background: 'rgba(24,4,4,0.72)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(239,68,68,0.5)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)',
         }}
       >
-        <svg width="11" height="10" viewBox="0 0 11 10" fill="none">
-          <rect x="0.6" y="0.6" width="9.8" height="8.8" rx="2.4" stroke="#ef4444" strokeWidth="1" fill="rgba(239,68,68,0.12)"/>
-          <text x="5.5" y="7.6" textAnchor="middle" fontSize="5.2" fontWeight="900" fill="#f87171" fontFamily="system-ui,sans-serif">18+</text>
+        {/* Flame */}
+        <svg width="11" height="14" viewBox="0 0 11 14" fill="none">
+          <path
+            d="M5.5 13C2.5 13 0.8 10.8 0.8 8.6C0.8 6.8 2 5.4 2.8 4.5C2.9 6 3.8 6.8 4.2 7C4 5.2 4.8 3 5.5 1.2C6.8 3 7.2 4.6 7 6C7.6 5.4 8.2 4.2 8.4 3.2C9.4 4.2 10.2 5.8 10.2 8C10.2 10.8 8.2 13 5.5 13Z"
+            fill="rgba(239,68,68,0.25)"
+            stroke="#f87171"
+            strokeWidth="0.9"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M5.5 11.5C4 11.5 3.2 10.3 3.4 9C3.8 9.6 4.4 9.8 5.5 9.6C5.2 10.4 5.6 11 5.5 11.5Z"
+            fill="#fca5a5"
+          />
         </svg>
       </div>
     );
   }
-  // Safe
+  /* SAFE: shield + check */
   return (
     <div
-      className="flex items-center gap-1 px-2 py-1 rounded-xl"
+      className="flex items-center justify-center w-7 h-7 rounded-xl"
       style={{
-        background: 'rgba(4,14,6,0.78)',
-        backdropFilter: 'blur(10px)',
+        background: 'rgba(4,16,6,0.72)',
+        backdropFilter: 'blur(12px)',
         border: '1px solid rgba(74,222,128,0.42)',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
       }}
     >
-      <svg width="9" height="10" viewBox="0 0 9 10" fill="none">
-        <path d="M4.5 0.8L8.2 2.4V5.6C8.2 7.7 6.6 9.1 4.5 9.7 2.4 9.1 0.8 7.7 0.8 5.6V2.4L4.5 0.8z"
-          fill="rgba(74,222,128,0.13)" stroke="#4ade80" strokeWidth="1" strokeLinejoin="round"/>
-        <path d="M2.9 5l1.1 1.1 2.1-2.2" stroke="#86efac" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+      <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+        <path
+          d="M6 1L11 3V7.5C11 10.2 8.8 12.5 6 13.2C3.2 12.5 1 10.2 1 7.5V3L6 1Z"
+          fill="rgba(74,222,128,0.14)"
+          stroke="#4ade80"
+          strokeWidth="1"
+          strokeLinejoin="round"
+        />
+        {/* checkmark */}
+        <path d="M3.8 7L5.2 8.5L8.2 5.5" stroke="#86efac" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        {/* shine */}
+        <path d="M4 2.8 Q5 2.3 7 2.6" stroke="rgba(134,239,172,0.4)" strokeWidth="0.6" strokeLinecap="round"/>
       </svg>
-      <span className="text-[7.5px] font-black uppercase tracking-wider" style={{ color: '#86efac', letterSpacing: '0.08em' }}>Safe</span>
     </div>
   );
 }
 
-export default function RoomTile({ room, isSaved, onSave, onOpen }: any) {
+// ── Use memo to prevent re-renders when parent re-renders ──
+const RoomTile = memo(function RoomTile({ room, isSaved, onSave, onOpen }: any) {
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
   const theme = room.color || "#000000";
   const textColor = getContrastColor(theme);
   const subTextColor = textColor === "#000000" ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)";
   const displaySavedCount = Math.max(0, room.savedCount || 0);
 
-  const handleShare = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleTileClick = useCallback(() => {
+    onOpen?.();
+    router.push(`/room/${room.slug}`);
+  }, [room.slug, onOpen, router]);
+
+  const handleSave = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSave();
+  }, [onSave]);
+
+  const handleShare = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(`${window.location.origin}/room/${room.slug}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
+  }, [room.slug]);
 
   return (
     <div
-      className="aspect-square rounded-[2.2rem] flex flex-col justify-between shadow-xl relative overflow-hidden transition-transform active:scale-95 border border-black/5"
-      style={{ backgroundColor: theme }}
+      onClick={handleTileClick}
+      className="aspect-square rounded-[2.2rem] flex flex-col justify-between shadow-xl relative overflow-hidden border border-black/5 cursor-pointer"
+      style={{
+        backgroundColor: theme,
+        transform: 'translateZ(0)',
+        WebkitTapHighlightColor: 'transparent',
+      }}
     >
-      <Link href={`/room/${room.slug}`} onClick={onOpen} className="absolute inset-0 z-0" />
-
-      {/* Top row: bookmark left, badges top-right stacked */}
-      <div className="flex items-start justify-between p-3.5 z-10">
-        {/* Bookmark */}
+      {/* Top row */}
+      <div className="flex items-start justify-between p-3 z-10">
         <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSave(); }}
+          onClick={handleSave}
           className="p-2 rounded-2xl backdrop-blur-md border transition-all z-10 active:scale-90"
           style={{
             backgroundColor: textColor === "#000000" ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.13)",
@@ -138,14 +172,14 @@ export default function RoomTile({ room, isSaved, onSave, onOpen }: any) {
           />
         </button>
 
-        {/* Two badges stacked vertically, top-right */}
+        {/* Icon-only badge stack — no text */}
         <div className="z-10 flex flex-col items-end gap-1">
           <VisibilityBadge isPrivate={room.isPrivate} />
           <ContentBadge isAdult={room.isAdult} />
         </div>
       </div>
 
-      {/* Bottom: title + meta */}
+      {/* Bottom */}
       <div className="z-10 px-4 pb-4">
         <h3
           className="font-black text-[16px] leading-tight uppercase tracking-tight"
@@ -169,4 +203,6 @@ export default function RoomTile({ room, isSaved, onSave, onOpen }: any) {
       </div>
     </div>
   );
-}
+});
+
+export default RoomTile;
