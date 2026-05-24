@@ -4,17 +4,17 @@ import { useEffect, useState } from "react";
 export default function IntroScreen({ onFinish }: { onFinish: () => void }) {
   const [phase, setPhase] = useState<'in' | 'hold' | 'out'>('in');
 
-useEffect(() => {
-  const t1 = setTimeout(() => setPhase('hold'), 100);
-  const t2 = setTimeout(() => setPhase('out'), 100);
-  const t3 = setTimeout(() => onFinish(), 100);
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase('hold'), 200);
+    const t2 = setTimeout(() => setPhase('out'), 1600);
+    const t3 = setTimeout(() => onFinish(), 2200);
 
-  return () => {
-    clearTimeout(t1);
-    clearTimeout(t2);
-    clearTimeout(t3);
-  };
-}, [onFinish]);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [onFinish]);
 
   return (
     <div
@@ -22,12 +22,14 @@ useEffect(() => {
       style={{
         opacity: phase === 'out' ? 0 : 1,
         transition: phase === 'out' ? 'opacity 0.55s cubic-bezier(0.4,0,0.2,1)' : 'none',
+        pointerEvents: phase === 'out' ? 'none' : 'all',
       }}
     >
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(250,201,246,0.07) 0%, transparent 70%)',
+          background:
+            'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(250,201,246,0.07) 0%, transparent 70%)',
           opacity: phase === 'hold' ? 1 : 0,
           transition: 'opacity 0.4s ease',
         }}
@@ -37,7 +39,8 @@ useEffect(() => {
         style={{
           opacity: phase === 'in' ? 0 : 1,
           transform: phase === 'in' ? 'scale(0.85)' : 'scale(1)',
-          transition: 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+          transition:
+            'opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
         }}
       >
         B<span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>L</span>ACK BOX
