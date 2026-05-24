@@ -501,6 +501,7 @@ const slideVariants = {
 };
 
 export default function HomePage() {
+  // ── FIX: showIntro now also controls the "Read more" re-open ──
   const [showIntro, setShowIntro] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -537,9 +538,6 @@ export default function HomePage() {
   const [bestPoll, setBestPoll] = useState<any>(null);
   const [copiedCreate, setCopiedCreate] = useState(false);
 
-  // ── Scroll restoration state ──
-  // We store the pending target here after reading sessionStorage,
-  // then a separate effect fires it once rooms are loaded on the right tab.
   const pendingScrollRef = useRef<{ tab: number; y: number } | null>(null);
   const scrollRestoredRef = useRef(false);
 
@@ -568,8 +566,6 @@ export default function HomePage() {
     setActiveFilters(new Set());
   }, [currentIndex]);
 
-  // ── Step 1: On mount, read sessionStorage and store target in ref.
-  //    Set the tab immediately (no flash), but DON'T scroll yet.
   useEffect(() => {
     setMounted(true);
     const saved = JSON.parse(localStorage.getItem('savedRooms') || '[]');
@@ -585,7 +581,6 @@ export default function HomePage() {
       localStorage.setItem('hasSeenIntro', '1');
     }
 
-    // Read and immediately clear the return state
     const savedTab = sessionStorage.getItem('returnTab');
     const savedScroll = sessionStorage.getItem('returnScrollY');
     sessionStorage.removeItem('returnTab');
@@ -594,21 +589,13 @@ export default function HomePage() {
     if (savedTab && savedScroll) {
       const tabIndex = parseInt(savedTab, 10);
       const scrollY = parseInt(savedScroll, 10);
-
-      // Switch to the correct tab immediately (direction 0 = no animation on restore)
       setDirection(0);
       setCurrentIndex(tabIndex);
-
-      // Store the pending scroll target; we'll fire it once content is ready
       pendingScrollRef.current = { tab: tabIndex, y: scrollY };
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Step 2: Fire the scroll ONLY after:
-  //    (a) rooms are loaded (grid is rendered), AND
-  //    (b) we're on the correct tab, AND
-  //    (c) we haven't already restored (guard against re-fires)
   useEffect(() => {
     if (!roomsLoaded) return;
     if (scrollRestoredRef.current) return;
@@ -619,8 +606,6 @@ export default function HomePage() {
     scrollRestoredRef.current = true;
     pendingScrollRef.current = null;
 
-    // Two rAF passes: first lets React flush the grid paint,
-    // second lets the browser do layout so scrollHeight is correct.
     const raf1 = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         window.scrollTo({ top: pending.y, behavior: 'instant' });
@@ -688,7 +673,6 @@ export default function HomePage() {
     fetchRooms(); paginate(2);
   };
 
-  // ── Save scroll + tab before navigating into a room ──
   const markRoomSeen = useCallback((roomId: string) => {
     sessionStorage.setItem('returnScrollY', String(window.scrollY));
     sessionStorage.setItem('returnTab', String(currentIndex));
@@ -742,6 +726,7 @@ export default function HomePage() {
 
   return (
     <>
+      {/* ── FIX: IntroScreen is shown on first visit AND when "Read more" is tapped ── */}
       {showIntro && <IntroScreen onFinish={() => setShowIntro(false)} />}
 
       <main
@@ -786,7 +771,7 @@ export default function HomePage() {
             const diff = e.clientX - dragStartXRef.current;
             if (Math.abs(diff) < 40) return;
             if (diff < 0 && currentIndex < 2) paginate(currentIndex + 1);
-            else if (diff > 0 && currentIndex > 0) paginate(currentIndex - 1);
+            else if (diff > 0 && currentIndex > 1) paginate(currentIndex - 1);
           }}
         >
           <AnimatePresence initial={false} custom={direction}>
@@ -832,7 +817,8 @@ export default function HomePage() {
                   </div>
 
                   <div className="px-4 mt-4">
-                    <AnimatedBlurb onReadMore={() => paginate(0)} />
+                    {/* ── FIX: onReadMore now shows the IntroScreen overlay instead of paginate(0) ── */}
+                    <AnimatedBlurb onReadMore={() => setShowIntro(true)} />
                   </div>
 
                   <InstallAppBanner />
