@@ -12,10 +12,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Update this block with your high-performing search keywords
 export const metadata: Metadata = {
-  title: "Black Box",
-  description: "Campus Anonymous Pulse",
+  title: 'The Black Box | Anonymous Chat Rooms & Private Spaces',
+  description: 'Create private, dark-themed rooms and chat anonymously instantly. No registration, no tracking—just pure, real-time anonymous conversations inside The Black Box.',
   manifest: "/manifest.json",
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
