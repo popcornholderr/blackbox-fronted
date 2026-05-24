@@ -1,7 +1,10 @@
 "use client";
-
 import { useState, useEffect, useRef } from 'react';
-import { Heart, ThumbsDown, Copy, Plus, X, ArrowLeft, Check, MessageCircle, BarChart2, Users } from 'lucide-react';
+import {
+  Heart, ThumbsDown, Copy, Plus, X, ArrowLeft, Check,
+  MessageCircle, BarChart2, Users, Lock, ShieldCheck,
+  UserCheck, UserX,
+} from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppGuard from '@/components/AppGuard';
@@ -13,14 +16,17 @@ const POLL_MS = 3000;
 function getOrCreateUserId(): string {
   if (typeof window === 'undefined') return 'anon';
   let id = localStorage.getItem('userId');
-  if (!id) { id = 'user-' + Math.random().toString(36).slice(2); localStorage.setItem('userId', id); }
+  if (!id) {
+    id = 'user-' + Math.random().toString(36).slice(2);
+    localStorage.setItem('userId', id);
+  }
   return id;
 }
 
 function formatTime(d: string) {
   const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
-  if (diff < 60) return "Just now";
-  if (diff < 300) return "5m ago";
+  if (diff < 60) return 'Just now';
+  if (diff < 300) return '5m ago';
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
@@ -41,7 +47,356 @@ function ErrorMsg({ text, word }: { text: string; word?: string | null }) {
   );
 }
 
-/* ── RoomContent: the actual room UI ───────────────────── */
+/* ── PRIVATE ROOM GATE ───────────────────────────────────── */
+function PrivateRoomGate({
+  room,
+  userId,
+  onGranted,
+}: {
+  room: any;
+  userId: string;
+  onGranted: (isAdmin: boolean) => void;
+}) {
+  const [mode, setMode] = useState<'choose' | 'admin' | 'request'>('choose');
+  const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [reqName, setReqName] = useState('');
+  const [reqError, setReqError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const [alreadyApproved, setAlreadyApproved] = useState(false);
+  const [checkingApproval, setCheckingApproval] = useState(true);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-request/${userId}`);
+        const data = await res.json();
+        if (data.status === 'approved') setAlreadyApproved(true);
+      } catch {
+        // treat as not approved
+      } finally {
+        setCheckingApproval(false);
+      }
+    };
+    check();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAdminCode = async () => {
+    if (!code.trim()) { setCodeError('Enter the admin code.'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/verify-admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (data.isAdmin) {
+        onGranted(true);
+      } else {
+        setCodeError('Wrong code. Try again.');
+      }
+    } catch {
+      setCodeError('Network error. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnterRoom = () => {
+    onGranted(false);
+  };
+
+  const handleJoinRequest = async () => {
+    if (!reqName.trim()) { setReqError('Enter your name.'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, name: reqName }),
+      });
+      const data = await res.json();
+      if (data.status === 'approved') {
+        onGranted(false);
+      } else if (data.status === 'pending') {
+        setReqError('Request sent! Wait for admin approval, then come back.');
+      } else {
+        setReqError(data.error || 'Failed to send request.');
+      }
+    } catch {
+      setReqError('Network error. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center px-5">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-sm"
+      >
+        {/* Room header */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 rounded-[1.5rem] border-2 border-[#60a5fa]/30 bg-[#60a5fa]/10 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(96,165,250,0.15)]">
+            <Lock size={28} className="text-[#60a5fa]" />
+          </div>
+          <h1
+            className="text-xl font-black uppercase italic tracking-tight text-white mb-1"
+            style={{ color: room.color }}
+          >
+            {room.title}
+          </h1>
+          <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Private Room</p>
+        </div>
+
+        {/* CHOOSE MODE */}
+        {mode === 'choose' && (
+          <div className="rounded-[2rem] border border-white/10 p-6 bg-[#0a0a0a] flex flex-col gap-3">
+            <button
+              onClick={() => setMode('admin')}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#60a5fa]/25 bg-[#60a5fa]/5 active:scale-[0.98] transition-all text-left"
+            >
+              <div className="w-10 h-10 rounded-xl bg-[#60a5fa]/10 flex items-center justify-center shrink-0">
+                <ShieldCheck size={18} className="text-[#60a5fa]" />
+              </div>
+              <div>
+                <p className="text-[12px] font-black uppercase text-white/80">Enter Admin Code</p>
+                <p className="text-[9px] text-white/35">Admins only — manage the room</p>
+              </div>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-[9px] font-black text-white/25 uppercase tracking-widest">or</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+            {checkingApproval ? (
+              <div className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.03] opacity-40">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                  <Users size={18} className="text-white/50" />
+                </div>
+                <p className="text-[12px] font-black uppercase text-white/50 animate-pulse">Checking...</p>
+              </div>
+            ) : alreadyApproved ? (
+              <button
+                onClick={handleEnterRoom}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-green-500/25 bg-green-500/5 active:scale-[0.98] transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
+                  <UserCheck size={18} className="text-green-400" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-black uppercase text-white/80">Enter the Room</p>
+                  <p className="text-[9px] text-white/35">You&apos;re approved — go right in</p>
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={() => setMode('request')}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.03] active:scale-[0.98] transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                  <Users size={18} className="text-white/50" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-black uppercase text-white/80">Request to Join</p>
+                  <p className="text-[9px] text-white/35">Submit your name and wait for approval</p>
+                </div>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ADMIN CODE */}
+        {mode === 'admin' && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+            className="rounded-[2rem] border border-[#60a5fa]/20 p-6 bg-[#0a0a0a]"
+          >
+            <div className="flex items-center gap-2 mb-5">
+              <button
+                onClick={() => { setMode('choose'); setCode(''); setCodeError(''); }}
+                className="p-1 text-white/40 hover:text-white transition-colors"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <h2 className="text-base font-black uppercase italic text-white">Admin Code</h2>
+            </div>
+            <input
+              className={`w-full border p-4 rounded-2xl mb-2 outline-none font-bold text-white bg-black placeholder:text-white/20 text-sm tracking-[0.2em] ${codeError ? 'border-red-500/50' : 'border-[#60a5fa]/20'}`}
+              placeholder="Enter your admin code"
+              value={code}
+              type="password"
+              onChange={e => { setCode(e.target.value); setCodeError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdminCode(); }}
+            />
+            {codeError && (
+              <p className="text-[10px] text-red-400 font-black uppercase mb-3 animate-pulse">{codeError}</p>
+            )}
+            <button
+              onClick={handleAdminCode}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl font-black uppercase tracking-wider text-sm bg-[#60a5fa] text-black active:scale-95 transition-all mt-3 disabled:opacity-50"
+            >
+              {loading ? 'Verifying...' : 'Open Admin Panel'}
+            </button>
+          </motion.div>
+        )}
+
+        {/* REQUEST TO JOIN */}
+        {mode === 'request' && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+            className="rounded-[2rem] border border-white/10 p-6 bg-[#0a0a0a]"
+          >
+            <div className="flex items-center gap-2 mb-5">
+              <button
+                onClick={() => { setMode('choose'); setReqName(''); setReqError(''); }}
+                className="p-1 text-white/40 hover:text-white transition-colors"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <h2 className="text-base font-black uppercase italic text-white">Request to Join</h2>
+            </div>
+            <p className="text-[10px] text-white/35 mb-4 leading-relaxed">
+              Enter a name so the admin knows who&apos;s requesting. It doesn&apos;t have to be your real name.
+            </p>
+            <input
+              className={`w-full border p-4 rounded-2xl mb-2 outline-none font-bold text-white bg-black placeholder:text-white/20 text-sm ${reqError ? 'border-red-500/50' : 'border-white/10'}`}
+              placeholder="Your display name"
+              value={reqName}
+              onChange={e => { setReqName(e.target.value); setReqError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleJoinRequest(); }}
+            />
+            {reqError && (
+              <p className="text-[10px] text-red-400 font-black uppercase mb-3 animate-pulse">{reqError}</p>
+            )}
+            <button
+              onClick={handleJoinRequest}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl font-black uppercase tracking-wider text-sm bg-white text-black active:scale-95 transition-all mt-3 disabled:opacity-50"
+            >
+              {loading ? 'Sending...' : 'Send Request'}
+            </button>
+          </motion.div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+/* ── ADMIN PANEL ─────────────────────────────────────────── */
+function AdminPanel({ room, onClose }: { room: any; onClose: () => void }) {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchRequests = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-requests`);
+      const data = await res.json();
+      setRequests(Array.isArray(data) ? data : []);
+    } catch {
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+    pollRef.current = setInterval(fetchRequests, 3000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAction = async (requestId: string, action: 'approved' | 'denied' | 'kick') => {
+    await fetch(`${BASE_URL}/api/rooms/${room._id}/join-requests/${requestId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    fetchRequests();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-end justify-center p-0"
+    >
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="w-full max-w-md rounded-t-[2rem] bg-[#0a0a0a] border-t border-x border-white/10 px-5 pt-5 pb-10 max-h-[80vh] overflow-y-auto"
+      >
+        <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={16} className="text-[#60a5fa]" />
+            <h2 className="text-lg font-black uppercase italic text-white">Admin Panel</h2>
+          </div>
+          <button onClick={onClose} className="text-white/40 p-1 hover:text-white"><X size={20} /></button>
+        </div>
+
+        {loading && (
+          <p className="text-white/30 text-center text-xs font-black uppercase py-6">Loading...</p>
+        )}
+
+        {!loading && requests.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-white/20 text-xs font-black uppercase tracking-widest">No pending requests</p>
+            <p className="text-white/10 text-[10px] mt-1">Share the room link to invite people</p>
+          </div>
+        )}
+
+        {!loading && requests.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <p className="text-[10px] font-black uppercase text-white/30 tracking-widest">
+              {requests.length} pending request{requests.length !== 1 ? 's' : ''}
+            </p>
+            {requests.map((req: any) => (
+              <div key={req._id} className="flex items-center gap-3 p-4 rounded-2xl border border-white/8 bg-white/[0.03]">
+                <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0 text-base">
+                  👤
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-black text-white/80 truncate">{req.name}</p>
+                  <p className="text-[9px] text-white/25 uppercase tracking-wider">{formatTime(req.createdAt)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleAction(req._id, 'approved')}
+                    className="w-8 h-8 rounded-xl bg-green-500/15 border border-green-500/25 flex items-center justify-center active:scale-90 transition-all"
+                  >
+                    <UserCheck size={14} className="text-green-400" />
+                  </button>
+                  <button
+                    onClick={() => handleAction(req._id, 'denied')}
+                    className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center active:scale-90 transition-all"
+                  >
+                    <UserX size={14} className="text-red-400" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ── RoomContent ─────────────────────────────────────────── */
 function RoomContent() {
   const { slug } = useParams();
   const router = useRouter();
@@ -51,15 +406,17 @@ function RoomContent() {
   const [showPollModal, setShowPollModal] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [gateCleared, setGateCleared] = useState(false);
 
-  const [dropName, setDropName] = useState("");
-  const [dropContent, setDropContent] = useState("");
+  const [dropName, setDropName] = useState('');
+  const [dropContent, setDropContent] = useState('');
   const [dropError, setDropError] = useState<string | null>(null);
   const [dropBadWord, setDropBadWord] = useState<string | null>(null);
 
-  const [pollName, setPollName] = useState("");
-  const [pollQuestion, setPollQuestion] = useState("");
-  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [pollName, setPollName] = useState('');
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollMultiple, setPollMultiple] = useState(false);
   const [pollError, setPollError] = useState<string | null>(null);
   const [pollBadWord, setPollBadWord] = useState<string | null>(null);
@@ -69,6 +426,9 @@ function RoomContent() {
   const knownIdsRef = useRef<Set<string>>(new Set());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Key for scroll position of THIS room page (used when going into a drop detail)
+  const ROOM_SCROLL_KEY = `scrollPos-room-${slug}`;
+
   const userId = getOrCreateUserId();
 
   useEffect(() => {
@@ -76,17 +436,38 @@ function RoomContent() {
     setSeenDrops(sd);
   }, [slug]);
 
+  // ── Restore room scroll when coming back from a drop-detail page ──
+  useEffect(() => {
+    if (!data) return;
+    if (data.room?.isPrivate && !gateCleared) return;
+
+    const saved = sessionStorage.getItem(ROOM_SCROLL_KEY);
+    if (!saved) return;
+
+    const target = parseInt(saved, 10);
+    sessionStorage.removeItem(ROOM_SCROLL_KEY);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: target, behavior: 'instant' });
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, gateCleared]);
+
   const fetchRoom = async (silent = false) => {
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${slug}`);
+      if (!res.ok) return;
       const incoming = await res.json();
       if (!silent) {
         const ids = incoming.drops.map((d: any) => String(d._id).trim());
         knownIdsRef.current = new Set(ids);
-        setData(incoming); return;
+        setData(incoming);
+        return;
       }
-      const incoming_ids = incoming.drops.map((d: any) => String(d._id).trim());
-      const brandNew = incoming_ids.filter((id: string) => !knownIdsRef.current.has(id));
+      const incomingIds = incoming.drops.map((d: any) => String(d._id).trim());
+      const brandNew = incomingIds.filter((id: string) => !knownIdsRef.current.has(id));
       if (brandNew.length) {
         brandNew.forEach((id: string) => knownIdsRef.current.add(id));
         setNewDropIds(prev => [...prev, ...brandNew]);
@@ -100,6 +481,7 @@ function RoomContent() {
     fetchRoom(false);
     timerRef.current = setInterval(() => fetchRoom(true), POLL_MS);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   useEffect(() => {
@@ -109,23 +491,27 @@ function RoomContent() {
       const newIds = data.drops.map((d: any) => String(d._id).trim()).filter((id: string) => !cs.includes(id));
       localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...newIds]));
     };
-    window.addEventListener("beforeunload", mark);
-    return () => window.removeEventListener("beforeunload", mark);
+    window.addEventListener('beforeunload', mark);
+    return () => window.removeEventListener('beforeunload', mark);
   }, [data, slug]);
 
+  // ── Back button: restore the home page's tab + scroll position.
+  // 'returnTab' and 'returnScrollY' were written by markRoomSeen()
+  // (or the Link onClick handlers) on the home page when the user
+  // tapped this room's tile. We leave them in sessionStorage so the
+  // home page's mount effect can read them and restore correctly.
+  // We do NOT overwrite them here — markRoomSeen() already set them.
   const handleBack = () => {
-    // Mark all drops as seen
+    // Mark all current drops as seen before leaving
     if (data) {
       const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
-      const nids = data.drops.map((d: any) => String(d._id).trim()).filter((id: string) => !cs.includes(id));
+      const nids = data.drops
+        .map((d: any) => String(d._id).trim())
+        .filter((id: string) => !cs.includes(id));
       localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...nids]));
     }
-    if (timerRef.current) clearInterval(timerRef.current);
 
-    // FIX: Always set hasSeenIntro before going back.
-    // This prevents AppGuard from showing the BLACK BOX intro splash
-    // when the user lands on the home page via the back button.
-    sessionStorage.setItem('hasSeenIntro', 'true');
+    if (timerRef.current) clearInterval(timerRef.current);
 
     if (window.history.length <= 2) router.push('/');
     else router.back();
@@ -155,58 +541,87 @@ function RoomContent() {
     const av = parseInt(localStorage.getItem('avatarIndex') || '0');
     const res = await fetch(`${BASE_URL}/api/drops`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId: data.room._id, content: dropContent, tempName: dropName || "Anonymous", avatarIndex: av }),
+      body: JSON.stringify({ roomId: data.room._id, content: dropContent, tempName: dropName || 'Anonymous', avatarIndex: av }),
     });
     if (!res.ok) {
       const r = await res.json();
-      setDropError(r.error || "Something went wrong."); setDropBadWord(r.abusiveWord || null);
-      setTimeout(() => { setDropError(null); setDropBadWord(null); }, 3000); return;
+      setDropError(r.error || 'Something went wrong.');
+      setDropBadWord(r.abusiveWord || null);
+      setTimeout(() => { setDropError(null); setDropBadWord(null); }, 3000);
+      return;
     }
-    setShowDropModal(false); setDropContent(""); setDropName("");
+    setShowDropModal(false); setDropContent(''); setDropName('');
     fetchRoom(true);
   };
 
   const handleCreatePoll = async () => {
     const opts = pollOptions.filter(o => o.trim());
-    if (!pollQuestion.trim()) { setPollError("Question is required."); return; }
-    if (opts.length < 2) { setPollError("At least 2 options required."); return; }
+    if (!pollQuestion.trim()) { setPollError('Question is required.'); return; }
+    if (opts.length < 2) { setPollError('At least 2 options required.'); return; }
     setPollError(null); setPollBadWord(null);
     const av = parseInt(localStorage.getItem('avatarIndex') || '0');
     const res = await fetch(`${BASE_URL}/api/polls`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId: data.room._id, question: pollQuestion, options: opts, allowMultiple: pollMultiple, tempName: pollName || "Anonymous", avatarIndex: av }),
+      body: JSON.stringify({ roomId: data.room._id, question: pollQuestion, options: opts, allowMultiple: pollMultiple, tempName: pollName || 'Anonymous', avatarIndex: av }),
     });
     if (!res.ok) {
       const r = await res.json();
-      setPollError(r.error || "Something went wrong."); setPollBadWord(r.abusiveWord || null);
-      setTimeout(() => { setPollError(null); setPollBadWord(null); }, 3000); return;
+      setPollError(r.error || 'Something went wrong.');
+      setPollBadWord(r.abusiveWord || null);
+      setTimeout(() => { setPollError(null); setPollBadWord(null); }, 3000);
+      return;
     }
-    setShowPollModal(false); setPollQuestion(""); setPollName(""); setPollOptions(["", ""]); setPollMultiple(false);
+    setShowPollModal(false); setPollQuestion(''); setPollName(''); setPollOptions(['', '']); setPollMultiple(false);
     fetchRoom(true);
   };
 
   const navigateToDrop = (dropId: string) => {
+    // Save THIS room's scroll so we can restore it when coming back from drop detail
+    sessionStorage.setItem(ROOM_SCROLL_KEY, String(window.scrollY));
+
     const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
     if (!cs.includes(dropId)) localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, dropId]));
-    // FIX: set hasSeenIntro so nested room navigation never shows the intro
-    sessionStorage.setItem('hasSeenIntro', 'true');
     router.push(`/room/${slug}/${dropId}`);
   };
 
   const getItemStyle = (index: number) => {
-    const op = ["12", "18", "25", "10"];
-    return { backgroundColor: `${data.room.color}${op[index % op.length]}`, borderLeft: `4px solid ${data.room.color}40` };
+    const op = ['12', '18', '25', '10'];
+    return {
+      backgroundColor: `${data.room.color}${op[index % op.length]}`,
+      borderLeft: `4px solid ${data.room.color}40`,
+    };
   };
 
-  if (!data) return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
-      <div className="text-xl font-black italic animate-pulse uppercase tracking-tighter text-white">Fetching Drops...</div>
-    </div>
-  );
+  if (!data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-xl font-black italic animate-pulse uppercase tracking-tighter text-white">
+          Fetching Drops...
+        </div>
+      </div>
+    );
+  }
+
+  if (data.room.isPrivate && !gateCleared) {
+    return (
+      <PrivateRoomGate
+        room={data.room}
+        userId={userId}
+        onGranted={(adminFlag) => {
+          setGateCleared(true);
+          if (adminFlag) {
+            setShowAdminPanel(true);
+          }
+        }}
+      />
+    );
+  }
 
   const drops = (data.drops || []).map((d: any) => ({ ...d, _type: 'drop' }));
   const polls = (data.polls || []).map((p: any) => ({ ...p, _type: 'poll' }));
-  const feed = [...drops, ...polls].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const feed = [...drops, ...polls].sort(
+    (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   return (
     <main className="min-h-screen pb-32 relative overflow-x-hidden" style={{ backgroundColor: `${data.room.color}05` }}>
@@ -216,15 +631,41 @@ function RoomContent() {
         <button onClick={handleBack} className="p-2 border border-white/20 rounded-xl bg-black">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex-1 text-center pr-10">
-          <h1 className="text-2xl font-black uppercase italic truncate max-w-[220px] mx-auto" style={{ color: data.room.color }}>{data.room.title}</h1>
+        <div className="flex-1 text-center">
+          <div className="flex items-center justify-center gap-2">
+            {data.room.isPrivate && (
+              <Lock size={13} className="text-[#93c5fd] shrink-0" />
+            )}
+            {data.room.isAdult && !data.room.isPrivate && (
+              <span className="text-[11px]">🔞</span>
+            )}
+            {!data.room.isAdult && !data.room.isPrivate && (
+              <span className="text-[11px]">🛡️</span>
+            )}
+            <h1
+              className="text-2xl font-black uppercase italic truncate max-w-[160px]"
+              style={{ color: data.room.color }}
+            >
+              {data.room.title}
+            </h1>
+            {data.room.isAdult && (
+              <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black bg-red-500/80 text-white shrink-0">18+</span>
+            )}
+          </div>
           <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] font-bold text-white/25 tracking-widest uppercase">
             <span>blackbox-omega-peach.vercel.app/room/{slug}</span>
-            <button onClick={() => { navigator.clipboard.writeText(`${window.location.host}/room/${slug}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.host}/room/${slug}`);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+            >
               {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
             </button>
           </div>
         </div>
+        <div className="w-10" />
       </header>
 
       {/* FEED */}
@@ -234,7 +675,11 @@ function RoomContent() {
             const totalV = item.options.reduce((s: number, o: any) => s + o.voters.length, 0);
             const userVoted = item.options.some((o: any) => o.voters.includes(userId));
             return (
-              <div key={String(item._id)} className="masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col" style={getItemStyle(idx)}>
+              <div
+                key={String(item._id)}
+                className="masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col"
+                style={getItemStyle(idx)}
+              >
                 <div className="flex items-center gap-2 mb-3">
                   <img src={`/avatars/${item.avatarIndex ?? 0}.png`} className="w-8 h-8 rounded-full border shadow-sm" alt="" />
                   <span className="text-[10px] font-black uppercase text-white/60 truncate max-w-[70px]">{item.tempName}</span>
@@ -249,10 +694,22 @@ function RoomContent() {
                     const pct = totalV > 0 ? Math.round((opt.voters.length / totalV) * 100) : 0;
                     const voted = opt.voters.includes(userId);
                     return (
-                      <button key={i} onClick={(e) => handlePollVote(String(item._id), i, e)}
+                      <button
+                        key={i}
+                        onClick={(e) => handlePollVote(String(item._id), i, e)}
                         className="relative overflow-hidden rounded-xl border border-white/10 text-left active:scale-[0.98] transition-transform"
-                        style={{ background: "rgba(255,255,255,0.04)" }}>
-                        {userVoted && <div className="absolute inset-y-0 left-0 rounded-xl" style={{ width: `${pct}%`, background: voted ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.06)", transition: 'width 0.7s ease' }} />}
+                        style={{ background: 'rgba(255,255,255,0.04)' }}
+                      >
+                        {userVoted && (
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-xl"
+                            style={{
+                              width: `${pct}%`,
+                              background: voted ? 'rgba(167,139,250,0.3)' : 'rgba(255,255,255,0.06)',
+                              transition: 'width 0.7s ease',
+                            }}
+                          />
+                        )}
                         <div className="relative px-3 py-2.5 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${voted ? 'border-[#a78bfa] bg-[#a78bfa]' : 'border-white/25'}`} />
@@ -265,7 +722,10 @@ function RoomContent() {
                   })}
                 </div>
                 <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[9px] text-white/30 font-bold"><Users size={10} /><span>{totalV} vote{totalV !== 1 ? 's' : ''}</span></div>
+                  <div className="flex items-center gap-1.5 text-[9px] text-white/30 font-bold">
+                    <Users size={10} />
+                    <span>{totalV} vote{totalV !== 1 ? 's' : ''}</span>
+                  </div>
                   <span className="text-[8px] font-black uppercase text-white/25">{formatTime(item.createdAt)}</span>
                 </div>
               </div>
@@ -278,13 +738,16 @@ function RoomContent() {
           const isNew = !seenDrops.includes(dropId);
           const rc = (item.replies || []).length;
           const isLong = item.content.length > 50;
-          const display = isLong ? item.content.slice(0, 50) + "…" : item.content;
+          const display = isLong ? item.content.slice(0, 50) + '…' : item.content;
           const justArrived = newDropIds.includes(dropId);
 
           return (
-            <div key={dropId} onClick={() => navigateToDrop(dropId)}
+            <div
+              key={dropId}
+              onClick={() => navigateToDrop(dropId)}
               className={`relative masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col transition-all duration-300 cursor-pointer hover:scale-[1.01] hover:border-white/20 active:scale-[0.98] ${justArrived ? 'new-drop-liquid' : ''}`}
-              style={getItemStyle(idx)}>
+              style={getItemStyle(idx)}
+            >
               {isNew && <div className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full" />}
               <div className="flex items-center gap-2 mb-3">
                 <img src={`/avatars/${item.avatarIndex}.png`} className="w-8 h-8 rounded-full border shadow-sm" alt="" />
@@ -293,23 +756,39 @@ function RoomContent() {
               <div className="flex-1">
                 <p className="text-sm font-medium leading-relaxed text-white/80">{display}</p>
                 {isLong && (
-                  <button onClick={(e) => { e.stopPropagation(); navigateToDrop(dropId); }}
-                    className="text-[10px] font-black uppercase mt-1 hover:text-white" style={{ color: data.room.color }}>read more</button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigateToDrop(dropId); }}
+                    className="text-[10px] font-black uppercase mt-1 hover:text-white"
+                    style={{ color: data.room.color }}
+                  >
+                    read more
+                  </button>
                 )}
               </div>
               <div className="mt-4 border-t border-white/10 pt-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <div className="flex gap-4 items-center">
-                    <button onClick={(e) => handleVote(dropId, 'likes', e)} className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'text-white/40 hover:text-white'}`}>
-                      <Heart size={12} fill={hasLiked ? "currentColor" : "none"} /> {item.likes.length}
+                    <button
+                      onClick={(e) => handleVote(dropId, 'likes', e)}
+                      className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                    >
+                      <Heart size={12} fill={hasLiked ? 'currentColor' : 'none'} /> {item.likes.length}
                     </button>
-                    <button onClick={(e) => handleVote(dropId, 'dislikes', e)} className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}>
-                      <Heart size={12} fill={hasDisliked ? "currentColor" : "none"} className="rotate-180" /> {item.dislikes.length}
+                    <button
+                      onClick={(e) => handleVote(dropId, 'dislikes', e)}
+                      className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                    >
+                      <Heart size={12} fill={hasDisliked ? 'currentColor' : 'none'} className="rotate-180" /> {item.dislikes.length}
                     </button>
                   </div>
                   <span className="text-[8px] font-black uppercase text-white/25">{formatTime(item.createdAt)}</span>
                 </div>
-                {rc > 0 && <div className="flex items-center gap-1 text-[10px] font-black text-white/30"><MessageCircle size={11} /><span>{rc} subdrop{rc !== 1 ? 's' : ''}</span></div>}
+                {rc > 0 && (
+                  <div className="flex items-center gap-1 text-[10px] font-black text-white/30">
+                    <MessageCircle size={11} />
+                    <span>{rc} subdrop{rc !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -321,23 +800,34 @@ function RoomContent() {
         <AnimatePresence>
           {showFabMenu && (
             <>
-              <motion.button initial={{ opacity: 0, y: 16, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.8 }} transition={{ delay: 0.04 }}
+              <motion.button
+                initial={{ opacity: 0, y: 16, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.8 }}
+                transition={{ delay: 0.04 }}
                 onClick={() => { setShowFabMenu(false); setShowPollModal(true); }}
-                className="w-14 h-14 bg-[#0a0a0a] rounded-full flex flex-col items-center justify-center shadow-2xl border-2 border-[#a78bfa]/40 active:scale-90 transition-transform">
+                className="w-14 h-14 bg-[#0a0a0a] rounded-full flex flex-col items-center justify-center shadow-2xl border-2 border-[#a78bfa]/40 active:scale-90 transition-transform"
+              >
                 <BarChart2 size={20} className="text-[#a78bfa]" />
                 <span className="text-[6px] font-black uppercase text-[#a78bfa] tracking-wider mt-0.5">Poll</span>
               </motion.button>
-              <motion.button initial={{ opacity: 0, y: 16, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.8 }}
+              <motion.button
+                initial={{ opacity: 0, y: 16, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.8 }}
                 onClick={() => { setShowFabMenu(false); setShowDropModal(true); }}
-                className="w-14 h-14 bg-[#0a0a0a] rounded-full flex flex-col items-center justify-center shadow-2xl border-2 border-white/20 active:scale-90 transition-transform">
+                className="w-14 h-14 bg-[#0a0a0a] rounded-full flex flex-col items-center justify-center shadow-2xl border-2 border-white/20 active:scale-90 transition-transform"
+              >
                 <MessageCircle size={20} className="text-white" />
                 <span className="text-[6px] font-black uppercase text-white/60 tracking-wider mt-0.5">Drop</span>
               </motion.button>
             </>
           )}
         </AnimatePresence>
-        <button onClick={() => setShowFabMenu(p => !p)}
-          className="w-16 h-16 bg-black rounded-full flex items-center justify-center shadow-2xl transition-transform active:scale-90 hover:scale-105 border-2 border-white/20">
+        <button
+          onClick={() => setShowFabMenu(p => !p)}
+          className="w-16 h-16 bg-black rounded-full flex items-center justify-center shadow-2xl transition-transform active:scale-90 hover:scale-105 border-2 border-white/20"
+        >
           <motion.div animate={{ rotate: showFabMenu ? 45 : 0 }} transition={{ duration: 0.2 }}>
             <Plus color="white" size={32} />
           </motion.div>
@@ -347,35 +837,62 @@ function RoomContent() {
       {/* FAB BACKDROP */}
       <AnimatePresence>
         {showFabMenu && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setShowFabMenu(false)} className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" />
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowFabMenu(false)}
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          />
         )}
       </AnimatePresence>
 
       {/* DROP MODAL */}
       <AnimatePresence>
         {showDropModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
-            <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-              className="w-full max-w-md rounded-[2.5rem] p-8 border border-white/10 bg-[#0a0a0a] shadow-2xl">
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+              className="w-full max-w-md rounded-[2.5rem] p-8 border border-white/10 bg-[#0a0a0a] shadow-2xl"
+            >
               <div className="flex justify-between mb-6">
                 <h2 className="text-xl font-black uppercase italic">New Drop</h2>
-                <button onClick={() => { setShowDropModal(false); setDropError(null); }} className="hover:rotate-90 transition-transform text-white/40 hover:text-white"><X /></button>
+                <button onClick={() => { setShowDropModal(false); setDropError(null); }} className="hover:rotate-90 transition-transform text-white/40 hover:text-white">
+                  <X />
+                </button>
               </div>
-              <input className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111]"
-                placeholder="Display Name..." value={dropName} onChange={e => setDropName(e.target.value)} />
-              <textarea maxLength={400}
+              {data.room.isAdult && (
+                <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl border border-red-500/20 bg-red-500/5">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/80 text-white font-black">18+</span>
+                  <p className="text-[9px] text-white/40">Adult room — unfiltered language allowed</p>
+                </div>
+              )}
+              <input
+                className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111]"
+                placeholder="Display Name..."
+                value={dropName}
+                onChange={e => setDropName(e.target.value)}
+              />
+              <textarea
+                maxLength={400}
                 className={`w-full border p-4 rounded-xl mb-2 h-36 resize-none outline-none bg-black text-white transition-all ${dropError ? 'border-red-600 shadow-[0_0_15px_rgba(220,38,38,0.3)] animate-shake' : 'border-white/10 focus:bg-[#111]'}`}
-                placeholder="What's the tea?" value={dropContent}
-                onChange={e => { setDropContent(e.target.value); setDropError(null); setDropBadWord(null); }} />
+                placeholder="What's the tea?"
+                value={dropContent}
+                onChange={e => { setDropContent(e.target.value); setDropError(null); setDropBadWord(null); }}
+              />
               {dropError && (
                 <p className="text-[10px] font-black uppercase mb-2 animate-pulse">
                   <ErrorMsg text={dropError} word={dropBadWord} />
                 </p>
               )}
               <p className="text-[10px] text-white/25 text-right font-bold mb-6">{dropContent.length}/400</p>
-              <button onClick={handleDrop} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all">Drop It</button>
+              <button
+                onClick={handleDrop}
+                className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all"
+              >
+                Drop It
+              </button>
             </motion.div>
           </motion.div>
         )}
@@ -384,43 +901,65 @@ function RoomContent() {
       {/* POLL MODAL */}
       <AnimatePresence>
         {showPollModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
-            <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-              className="w-full max-w-md rounded-[2.5rem] p-8 border border-white/10 bg-[#0a0a0a] shadow-2xl max-h-[90vh] overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+              className="w-full max-w-md rounded-[2.5rem] p-8 border border-white/10 bg-[#0a0a0a] shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
               <div className="flex justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <BarChart2 size={18} className="text-[#a78bfa]" />
                   <h2 className="text-xl font-black uppercase italic">New Poll</h2>
                 </div>
-                <button onClick={() => { setShowPollModal(false); setPollError(null); }} className="hover:rotate-90 transition-transform text-white/40 hover:text-white"><X /></button>
+                <button onClick={() => { setShowPollModal(false); setPollError(null); }} className="hover:rotate-90 transition-transform text-white/40 hover:text-white">
+                  <X />
+                </button>
               </div>
-              <input className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111]"
-                placeholder="Display Name..." value={pollName} onChange={e => setPollName(e.target.value)} />
-              <textarea maxLength={200}
+              <input
+                className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111]"
+                placeholder="Display Name..."
+                value={pollName}
+                onChange={e => setPollName(e.target.value)}
+              />
+              <textarea
+                maxLength={200}
                 className={`w-full border p-4 rounded-xl mb-4 h-24 resize-none outline-none bg-black text-white ${pollError ? 'border-red-600' : 'border-white/10 focus:bg-[#111]'}`}
-                placeholder="Ask something..." value={pollQuestion}
-                onChange={e => { setPollQuestion(e.target.value); setPollError(null); }} />
+                placeholder="Ask something..."
+                value={pollQuestion}
+                onChange={e => { setPollQuestion(e.target.value); setPollError(null); }}
+              />
               <p className="text-[10px] font-black uppercase text-white/35 tracking-widest mb-3">Options (2–4)</p>
               <div className="flex flex-col gap-2 mb-4">
                 {pollOptions.map((opt, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <input maxLength={80}
+                    <input
+                      maxLength={80}
                       className="flex-1 border border-white/10 bg-black text-white p-3 rounded-xl font-bold outline-none placeholder:text-white/25 focus:bg-[#111] text-sm"
-                      placeholder={`Option ${i + 1}`} value={opt}
-                      onChange={e => { const u = [...pollOptions]; u[i] = e.target.value; setPollOptions(u); setPollError(null); }} />
+                      placeholder={`Option ${i + 1}`}
+                      value={opt}
+                      onChange={e => { const u = [...pollOptions]; u[i] = e.target.value; setPollOptions(u); setPollError(null); }}
+                    />
                     {pollOptions.length > 2 && (
-                      <button onClick={() => setPollOptions(p => p.filter((_, j) => j !== i))} className="text-white/30 hover:text-white"><X size={14} /></button>
+                      <button onClick={() => setPollOptions(p => p.filter((_, j) => j !== i))} className="text-white/30 hover:text-white">
+                        <X size={14} />
+                      </button>
                     )}
                   </div>
                 ))}
                 {pollOptions.length < 4 && (
-                  <button onClick={() => setPollOptions(p => [...p, ""])} className="text-[10px] font-black uppercase text-[#a78bfa] tracking-widest text-left mt-1">+ Add option</button>
+                  <button onClick={() => setPollOptions(p => [...p, ''])} className="text-[10px] font-black uppercase text-[#a78bfa] tracking-widest text-left mt-1">
+                    + Add option
+                  </button>
                 )}
               </div>
               <div className="flex items-center gap-3 mb-6 p-4 rounded-xl border border-white/10 bg-black/30">
-                <button onClick={() => setPollMultiple(p => !p)}
-                  className={`w-10 h-5 rounded-full relative transition-all ${pollMultiple ? 'bg-[#a78bfa]' : 'bg-white/10'}`}>
+                <button
+                  onClick={() => setPollMultiple(p => !p)}
+                  className={`w-10 h-5 rounded-full relative transition-all ${pollMultiple ? 'bg-[#a78bfa]' : 'bg-white/10'}`}
+                >
                   <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${pollMultiple ? 'left-5' : 'left-0.5'}`} />
                 </button>
                 <div>
@@ -433,12 +972,22 @@ function RoomContent() {
                   <ErrorMsg text={pollError} word={pollBadWord} />
                 </p>
               )}
-              <button onClick={handleCreatePoll}
-                className="w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] active:scale-95 transition-all text-black" style={{ background: "#a78bfa" }}>
+              <button
+                onClick={handleCreatePoll}
+                className="w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] active:scale-95 transition-all text-black"
+                style={{ background: '#a78bfa' }}
+              >
                 Launch Poll
               </button>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ADMIN PANEL */}
+      <AnimatePresence>
+        {showAdminPanel && (
+          <AdminPanel room={data.room} onClose={() => setShowAdminPanel(false)} />
         )}
       </AnimatePresence>
     </main>
@@ -447,7 +996,7 @@ function RoomContent() {
 
 export default function RoomPage() {
   return (
-    <AppGuard isSharedLink={true}>
+    <AppGuard>
       <RoomContent />
     </AppGuard>
   );
