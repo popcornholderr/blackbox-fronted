@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo, forwardRef, memo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Search, Flame, Plus, X, Copy, Heart, ThumbsDown,
   BarChart2, Users, ChevronRight, Check,
@@ -501,7 +502,9 @@ const slideVariants = {
 };
 
 export default function HomePage() {
-  // ── FIX: showIntro now also controls the "Read more" re-open ──
+  const router = useRouter();
+
+  // showIntro controls first-visit overlay only
   const [showIntro, setShowIntro] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -726,7 +729,7 @@ export default function HomePage() {
 
   return (
     <>
-      {/* ── FIX: IntroScreen is shown on first visit AND when "Read more" is tapped ── */}
+      {/* IntroScreen only shown on first-ever visit */}
       {showIntro && <IntroScreen onFinish={() => setShowIntro(false)} />}
 
       <main
@@ -817,8 +820,8 @@ export default function HomePage() {
                   </div>
 
                   <div className="px-4 mt-4">
-                    {/* ── FIX: onReadMore now shows the IntroScreen overlay instead of paginate(0) ── */}
-                    <AnimatedBlurb onReadMore={() => setShowIntro(true)} />
+                    {/* ── FIX: onReadMore navigates to the intro page ── */}
+                    <AnimatedBlurb onReadMore={() => router.push('/intro')} />
                   </div>
 
                   <InstallAppBanner />
