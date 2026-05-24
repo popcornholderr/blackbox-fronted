@@ -4,13 +4,12 @@ import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
 import {
   Search, Flame, Plus, X, Copy, Heart, ThumbsDown,
   BarChart2, Users, ChevronRight, Check,
-  RotateCcw, Trophy, Zap, ShieldCheck,
+  Lock, ShieldAlert,
 } from 'lucide-react';
-import { FaInstagram, FaLinkedin } from 'react-icons/fa';
 import RoomTile from '@/components/RoomTile';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import Image from 'next/image';
 import Link from 'next/link';
+import IntroScreen from '@/components/IntroScreen';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -22,32 +21,8 @@ function formatTime(d: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-/* ── SPLASH SCREEN ── */
-function SplashScreen({ onDone }: { onDone: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onDone, 1800);
-    return () => clearTimeout(t);
-  }, [onDone]);
-
-  return (
-    <motion.div
-      className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
-      initial={{ opacity: 1 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <motion.h1
-        className="text-4xl font-black tracking-tighter text-white"
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        B<span className="mirror">L</span>ACK BOX
-      </motion.h1>
-    </motion.div>
-  );
-}
+/* ── Filter types — now a SET for multi-select ── */
+type RoomFilter = 'public' | 'private' | 'safe' | 'adult';
 
 /* ── ANIMATED BLURB ── */
 function AnimatedBlurb({ onReadMore }: { onReadMore: () => void }) {
@@ -193,9 +168,7 @@ function PosterCreateRoom({ onCreateRoom }: { onCreateRoom: () => void }) {
             <p className="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1.5">Room Title</p>
             <div className="rounded-2xl border-2 border-black px-4 py-3 bg-black">
               <span className="text-sm font-bold text-white">
-                {step >= 1
-                  ? <>E.g. Library Gossips{step < 2 ? <Cursor /> : null}</>
-                  : <span className="text-white/20">E.g. Library Gossips</span>}
+                {step >= 1 ? <>E.g. Library Gossips{step < 2 ? <Cursor /> : null}</> : <span className="text-white/20">E.g. Library Gossips</span>}
               </span>
             </div>
           </div>
@@ -335,7 +308,7 @@ function PosterModeration() {
           <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#f87171]">Always On</span>
           <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— AI Shield</span>
           <div className="ml-auto flex items-center gap-1.5">
-            <motion.span className="inline-block rounded-full shrink-0" style={{ width: 6, height: 6, background: '#ef4444' }} animate={{ scale: [1, 1.5, 1], opacity: [0.7, 1, 0.7] }} transition={{ duration: 1.4, repeat: Infinity }} />
+            <LiveDot color="#ef4444" />
             <span className="text-[8px] font-black uppercase text-white/25">Active</span>
           </div>
         </div>
@@ -470,400 +443,140 @@ function PosterPolls() {
   );
 }
 
-function DevProfile() {
+function PosterAdultRoom() {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '0px 0px -40px 0px' });
+  const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (!inView) { setStep(0); return; }
+    const ts = [
+      setTimeout(() => setStep(1), 400),
+      setTimeout(() => setStep(2), 1200),
+      setTimeout(() => setStep(3), 2000),
+    ];
+    return () => ts.forEach(clearTimeout);
+  }, [inView]);
+
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 20 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5 }}
-      className="rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(250,201,246,0.08)]"
-      style={{ background: '#0a0a0a' }}
-    >
-      <div className="flex flex-col items-center text-center p-8">
-        <div className="relative w-28 h-28 mb-5">
-          <div className="absolute inset-0 bg-[#fac9f6] rounded-[2.5rem] blur-2xl opacity-20 animate-pulse" />
-          <img src="/me.jpeg" alt="Daksh Vasani" className="w-full h-full object-cover rounded-[2.5rem] border-2 border-[#fac9f6] relative z-10" />
-        </div>
-        <h2 className="text-2xl font-black tracking-tighter uppercase italic text-white mb-1">Daksh Vasani</h2>
-        <p className="text-[10px] font-bold text-[#fac9f6] uppercase tracking-[0.3em] mb-6">Founder & Architect</p>
-        <div className="space-y-3 w-full mb-6">
-          <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-start gap-3 text-left">
-            <ShieldCheck className="text-[#fac9f6] shrink-0 mt-0.5" size={18} />
-            <div>
-              <p className="text-[11px] font-black uppercase text-white/90">Anonymous & Safe</p>
-              <p className="text-[9px] text-white/40 mt-1 leading-relaxed">Built to let students voice out without fear. AI filters block toxicity in real-time.</p>
-            </div>
-          </div>
-          <div className="relative w-full h-36 rounded-3xl overflow-hidden border border-white/10">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#fac9f6]/20 via-[#eab4ff]/20 to-[#f3d1ff]/20 blur-2xl animate-pulse" />
-            <img src="/censor.png" alt="" className="w-full h-full object-cover relative z-10" />
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] z-20" />
-            <div className="absolute bottom-3 left-4 z-30">
-              <p className="text-[10px] font-black uppercase text-white/80 tracking-widest">AI MODERATION ACTIVE</p>
-              <p className="text-[8px] text-white/40">Real-time censorship engine</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-3 w-full">
-          <a href="https://www.linkedin.com/in/daksh-vasani/" target="_blank" rel="noreferrer"
-            className="flex-1 flex items-center justify-center p-4 bg-[#0077b5]/10 border border-[#0077b5]/20 rounded-2xl text-[#0077b5]">
-            <FaLinkedin size={18} />
-          </a>
-          <a href="https://www.instagram.com/wasitreallydaksh" target="_blank" rel="noreferrer"
-            className="flex-1 flex items-center justify-center p-4 bg-pink-500/10 border border-pink-500/20 rounded-2xl text-pink-500">
-            <FaInstagram size={18} />
-          </a>
-        </div>
-        <p className="mt-6 text-[8px] font-black text-white/20 uppercase tracking-widest">© 2026 Black Box Protocol</p>
+    <IntroCard ref={ref as any}>
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#f87171]">New</span>
+        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— 18+ Rooms</span>
+        <div className="ml-auto px-2 py-0.5 rounded-lg text-[9px] font-black bg-red-500/80 text-white">18+</div>
       </div>
-    </motion.div>
+      <div className="rounded-[1.4rem] border border-white/10 p-4 mb-3" style={{ background: '#111' }}>
+        <p className="text-[10px] font-black uppercase text-white/50 tracking-widest mb-3">Room Type</p>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: '🛡️ Safe Room', sub: 'Words filtered', color: '#4ade80', active: step < 2 },
+            { label: '🔞 18+ Room', sub: 'Unfiltered chat', color: '#f87171', active: step >= 2 },
+          ].map((opt, i) => (
+            <motion.div
+              key={i}
+              animate={{ borderColor: opt.active ? opt.color + '80' : 'rgba(255,255,255,0.08)' }}
+              className="rounded-xl border p-3 flex flex-col gap-1"
+              style={{ background: opt.active ? opt.color + '10' : 'rgba(255,255,255,0.03)' }}
+            >
+              <span className="text-sm">{opt.label}</span>
+              <span className="text-[9px] text-white/40 font-bold">{opt.sub}</span>
+              {opt.active && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-3 h-3 rounded-full mt-1" style={{ background: opt.color }} />}
+            </motion.div>
+          ))}
+        </div>
+        {step >= 2 && (
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-3 p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5">
+            <p className="text-[9px] font-black text-yellow-400/80 uppercase tracking-widest mb-1">⚠️ 18+ rooms</p>
+            <p className="text-[9px] text-white/35 leading-relaxed">Adult language allowed. CSAM and terrorism content always blocked regardless of room type.</p>
+          </motion.div>
+        )}
+      </div>
+      <p className="text-[10px] text-white/35 leading-relaxed">
+        <span className="text-[#fac9f6] font-black">18+ rooms</span> show a red badge on the room tile. Safe rooms filter 400+ abusive patterns.
+      </p>
+    </IntroCard>
   );
 }
 
-/* ── GAME (inline, embedded in home) ── */
-const GW = 390, GH = 520, GROUND_Y = 400, CUBE_SIZE = 36;
-const GRAVITY = 0.55, JUMP_FORCE = -13.5, DOUBLE_JUMP_FORCE = -12, BASE_SPEED = 5;
-
-type ObstacleType = 'low' | 'tall' | 'floating' | 'double';
-interface Obstacle { x: number; w: number; h: number; y: number; type: ObstacleType; color: string; }
-interface Particle { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; r: number; }
-
-const LEVEL_CONFIG = Array.from({ length: 50 }, (_, i) => {
-  const lvl = i + 1;
-  return {
-    speed: BASE_SPEED + lvl * 0.28,
-    gap: Math.max(280, 520 - lvl * 4),
-    obstacleTypes: lvl < 5 ? ['low'] as ObstacleType[] : lvl < 12 ? ['low', 'tall'] as ObstacleType[] : lvl < 22 ? ['low', 'tall', 'floating'] as ObstacleType[] : ['low', 'tall', 'floating', 'double'] as ObstacleType[],
-    accentColor: ['#fac9f6', '#a78bfa', '#34d399', '#60a5fa', '#f87171', '#fbbf24', '#c084fc', '#2dd4bf', '#f472b6', '#818cf8'][Math.floor(lvl / 5) % 10],
-  };
-});
-
-function getObstacle(lvl: number, startX: number): Obstacle {
-  const cfg = LEVEL_CONFIG[Math.min(lvl - 1, 49)];
-  const type = cfg.obstacleTypes[Math.floor(Math.random() * cfg.obstacleTypes.length)];
-  const col = cfg.accentColor;
-  switch (type) {
-    case 'low': return { x: startX, w: 24, h: 32, y: GROUND_Y - 32, type, color: col };
-    case 'tall': return { x: startX, w: 22, h: 58, y: GROUND_Y - 58, type, color: col };
-    case 'floating': return { x: startX, w: 32, h: 18, y: GROUND_Y - 90 - Math.random() * 40, type, color: col };
-    case 'double': return { x: startX, w: 20, h: 44, y: GROUND_Y - 44, type, color: col };
-    default: return { x: startX, w: 24, h: 32, y: GROUND_Y - 32, type, color: col };
-  }
-}
-
-function drawCubeGame(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number, accent: string, jumping: boolean) {
-  const s = size, d = s * 0.3;
-  ctx.save();
-  ctx.translate(x + s / 2, y + s / 2);
-  ctx.rotate(jumping ? rot * 0.08 : rot * 0.03);
-  ctx.fillStyle = '#1a1a1a'; ctx.strokeStyle = accent; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.rect(-s / 2, -s / 2, s, s); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-s / 2, -s / 2); ctx.lineTo(-s / 2 + d, -s / 2 - d); ctx.lineTo(s / 2 + d, -s / 2 - d); ctx.lineTo(s / 2, -s / 2); ctx.closePath();
-  ctx.fillStyle = '#2a2a2a'; ctx.fill(); ctx.strokeStyle = accent + '88'; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(s / 2, -s / 2); ctx.lineTo(s / 2 + d, -s / 2 - d); ctx.lineTo(s / 2 + d, s / 2 - d); ctx.lineTo(s / 2, s / 2); ctx.closePath();
-  ctx.fillStyle = '#131313'; ctx.fill(); ctx.strokeStyle = accent + '66'; ctx.stroke();
-  ctx.beginPath(); ctx.rect(-s / 2 + 3, -s / 2 + 3, s - 6, s - 6); ctx.strokeStyle = accent + '44'; ctx.lineWidth = 1; ctx.stroke();
-  ctx.restore();
-}
-
-function GameView({ onBack }: { onBack: () => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number>(0);
-  const uiStateRef = useRef<'idle' | 'playing' | 'over'>('idle');
-  const lastTapRef = useRef(0);
-  const touchStartYRef = useRef(0);
-
-  const gameRef = useRef({
-    running: false, over: false, started: false,
-    cubeY: GROUND_Y - CUBE_SIZE, cubeVY: 0,
-    jumping: false, doubleAvail: true,
-    obstacles: [] as Obstacle[], particles: [] as Particle[],
-    score: 0, dist: 0, level: 1, nextLevelDist: 500,
-    spawnCooldown: 180, cubeRot: 0, bgOffset: 0,
-    stars: [] as { x: number; y: number; r: number; op: number }[],
-    scrollLines: [] as { x: number; speed: number; op: number }[],
-  });
-
-  const [uiState, setUiState] = useState<'idle' | 'playing' | 'over'>('idle');
-  const [score, setScore] = useState(0);
-  const [level, setLevel] = useState(1);
-  const [highScore, setHighScore] = useState(0);
-  const [showLevelUp, setShowLevelUp] = useState(false);
-  const prevLevelRef = useRef(1);
-
-  const setUiStateBoth = (s: 'idle' | 'playing' | 'over') => {
-    uiStateRef.current = s;
-    setUiState(s);
-  };
+function PosterPrivateRoom() {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
-    // Only access localStorage on client
-    const hs = parseInt(localStorage.getItem('bbgame-hs') || '0');
-    setHighScore(hs);
-    const g = gameRef.current;
-    g.stars = Array.from({ length: 60 }, () => ({ x: Math.random() * GW, y: Math.random() * (GROUND_Y - 60), r: Math.random() * 1.5 + 0.5, op: Math.random() * 0.6 + 0.2 }));
-    g.scrollLines = Array.from({ length: 8 }, () => ({ x: Math.random() * GW, speed: Math.random() * 2 + 1, op: Math.random() * 0.12 + 0.04 }));
-  }, []);
-
-  const spawnJumpParticles = () => {
-    const g = gameRef.current;
-    const acc = LEVEL_CONFIG[Math.min(g.level - 1, 49)].accentColor;
-    for (let i = 0; i < 8; i++) {
-      g.particles.push({ x: 36 + CUBE_SIZE / 2, y: g.cubeY + CUBE_SIZE, vx: (Math.random() - 0.5) * 3, vy: Math.random() * 2 + 1, life: 1, maxLife: 1, color: acc, r: Math.random() * 3 + 1 });
-    }
-  };
-
-  const jump = useCallback(() => {
-    const g = gameRef.current;
-    const currentState = uiStateRef.current;
-    if (!g.started || currentState === 'idle') {
-      g.started = true; g.running = true;
-      g.cubeVY = JUMP_FORCE; g.jumping = true; g.doubleAvail = true;
-      setUiStateBoth('playing');
-      spawnJumpParticles();
-      return;
-    }
-    if (g.over) return;
-    if (!g.jumping) {
-      g.cubeVY = JUMP_FORCE; g.jumping = true; g.doubleAvail = true;
-      spawnJumpParticles();
-    } else if (g.doubleAvail) {
-      g.cubeVY = DOUBLE_JUMP_FORCE; g.doubleAvail = false;
-      spawnJumpParticles();
-    }
-  }, []);
-
-  const resetGame = useCallback(() => {
-    const g = gameRef.current;
-    g.running = false; g.over = false; g.started = false;
-    g.cubeY = GROUND_Y - CUBE_SIZE; g.cubeVY = 0;
-    g.jumping = false; g.doubleAvail = true;
-    g.obstacles = []; g.particles = [];
-    g.score = 0; g.dist = 0; g.level = 1; g.nextLevelDist = 500;
-    g.spawnCooldown = 180; g.cubeRot = 0; g.bgOffset = 0;
-    prevLevelRef.current = 1;
-    setScore(0); setLevel(1);
-    setUiStateBoth('idle');
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    const loop = () => {
-      const g = gameRef.current;
-      const cfg = LEVEL_CONFIG[Math.min(g.level - 1, 49)];
-      const spd = cfg.speed, acc = cfg.accentColor;
-      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, GW, GH);
-      g.stars.forEach(s => { s.x -= 0.3; if (s.x < 0) { s.x = GW; s.y = Math.random() * (GROUND_Y - 60); } ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fillStyle = `rgba(255,255,255,${s.op})`; ctx.fill(); });
-      g.scrollLines.forEach(l => { if (!g.running) return; l.x -= l.speed * (spd / BASE_SPEED); if (l.x < 0) l.x = GW + 20; ctx.strokeStyle = `rgba(255,255,255,${l.op})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(l.x, 0); ctx.lineTo(l.x - 60, GROUND_Y); ctx.stroke(); });
-      ctx.fillStyle = '#111'; ctx.fillRect(0, GROUND_Y, GW, GH - GROUND_Y);
-      ctx.shadowColor = acc; ctx.shadowBlur = 6; ctx.strokeStyle = acc + '60'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(GW, GROUND_Y); ctx.stroke(); ctx.shadowBlur = 0;
-      const gx = ((g.bgOffset * 0.5) % 60); ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 0.5;
-      for (let i = -60; i < GW + 60; i += 60) { ctx.beginPath(); ctx.moveTo(i - gx, GROUND_Y); ctx.lineTo(i - gx, GH); ctx.stroke(); }
-      if (g.running && !g.over) {
-        g.bgOffset += spd;
-        g.cubeVY += GRAVITY; g.cubeY += g.cubeVY;
-        if (g.cubeY >= GROUND_Y - CUBE_SIZE) { g.cubeY = GROUND_Y - CUBE_SIZE; g.cubeVY = 0; g.jumping = false; g.doubleAvail = true; }
-        g.cubeRot += 2;
-        g.spawnCooldown--;
-        if (g.spawnCooldown <= 0 && g.obstacles.length < 4) {
-          g.obstacles.push(getObstacle(g.level, GW + 40));
-          const last = g.obstacles[g.obstacles.length - 1];
-          if (last.type === 'double') g.obstacles.push({ ...getObstacle(g.level, GW + 40 + last.w + 28), type: 'low', color: acc });
-          g.spawnCooldown = cfg.gap / spd;
-        }
-        g.obstacles = g.obstacles.filter(o => o.x + o.w > -10);
-        g.obstacles.forEach(o => { o.x -= spd; });
-        g.dist += spd; g.score = Math.floor(g.dist / 10);
-        if (g.dist > g.nextLevelDist && g.level < 50) {
-          g.level++; g.nextLevelDist += 600 + g.level * 60;
-          if (g.level !== prevLevelRef.current) { prevLevelRef.current = g.level; setLevel(g.level); setShowLevelUp(true); setTimeout(() => setShowLevelUp(false), 1500); }
-        }
-        setScore(g.score);
-        g.particles = g.particles.filter(p => p.life > 0);
-        g.particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life -= 0.05; });
-        const cx = 36, cy = g.cubeY, cw = CUBE_SIZE, ch = CUBE_SIZE;
-        for (const o of g.obstacles) {
-          if (cx + cw - 4 > o.x + 3 && cx + 4 < o.x + o.w - 3 && cy + ch - 4 > o.y + 3 && cy + 4 < o.y + o.h - 3) {
-            g.over = true; g.running = false;
-            for (let i = 0; i < 20; i++) g.particles.push({ x: cx + cw / 2, y: cy + ch / 2, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, life: 1, maxLife: 1, color: acc, r: Math.random() * 4 + 1 });
-            const hs = parseInt(localStorage.getItem('bbgame-hs') || '0');
-            if (g.score > hs) { localStorage.setItem('bbgame-hs', String(g.score)); setHighScore(g.score); }
-            setUiStateBoth('over'); break;
-          }
-        }
-      }
-      g.obstacles.forEach(o => { ctx.shadowColor = o.color; ctx.shadowBlur = 8; ctx.fillStyle = '#111'; ctx.strokeStyle = o.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(o.x, o.y, o.w, o.h, 4); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0; ctx.strokeStyle = o.color + '44'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.roundRect(o.x + 3, o.y + 3, o.w - 6, o.h - 6, 2); ctx.stroke(); });
-      ctx.shadowColor = acc; ctx.shadowBlur = 12;
-      drawCubeGame(ctx, 36, g.cubeY, CUBE_SIZE, g.cubeRot, acc, g.jumping);
-      ctx.shadowBlur = 0;
-      g.particles.forEach(p => { ctx.globalAlpha = p.life; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); });
-      ctx.globalAlpha = 1;
-      if (g.started) { ctx.font = 'bold 13px monospace'; ctx.fillStyle = acc; ctx.textAlign = 'right'; ctx.fillText(`LVL ${g.level}`, GW - 16, 28); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '11px monospace'; ctx.fillText(`${g.score}`, GW - 16, 46); }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [jump]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartYRef.current = e.touches[0].clientY;
-  }, []);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const dy = e.changedTouches[0].clientY - touchStartYRef.current;
-    // Swipe up = jump
-    if (dy < -30) { jump(); return; }
-    // Tap — check double-tap for double jump
-    const now = Date.now();
-    const since = now - lastTapRef.current;
-    if (since < 280 && since > 30) {
-      const g = gameRef.current;
-      if (g.jumping && g.doubleAvail) {
-        g.cubeVY = DOUBLE_JUMP_FORCE; g.doubleAvail = false;
-        spawnJumpParticles();
-      }
-    } else {
-      jump();
-    }
-    lastTapRef.current = now;
-  }, [jump]);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.pointerType !== 'touch') {
-      if ((e.target as HTMLElement).tagName === 'BUTTON') return;
-      jump();
-    }
-  }, [jump]);
-
-  const accentNow = LEVEL_CONFIG[Math.min(level - 1, 49)].accentColor;
+    if (!inView) { setStep(0); return; }
+    const ts = [
+      setTimeout(() => setStep(1), 500),
+      setTimeout(() => setStep(2), 1400),
+      setTimeout(() => setStep(3), 2200),
+      setTimeout(() => setStep(4), 3000),
+    ];
+    return () => ts.forEach(clearTimeout);
+  }, [inView]);
 
   return (
-    <div className="flex flex-col items-center pb-10">
-      <div className="w-full flex items-center gap-3 px-4 mb-4">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="w-8 h-8 rounded-lg border border-white/20 bg-black flex items-center justify-center overflow-hidden">
-            <Image src="/logo 2.png" alt="BB" width={20} height={20} className="object-contain" />
+    <IntroCard ref={ref as any}>
+      <div className="flex items-center gap-2 mb-4">
+        <Lock size={12} className="text-[#60a5fa]" />
+        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#60a5fa]">New</span>
+        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— Private Rooms</span>
+      </div>
+      <div className="rounded-[1.4rem] border border-white/10 overflow-hidden mb-3" style={{ background: '#111' }}>
+        <div className="px-4 py-4 border-b border-white/10 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-[#60a5fa]/10 border border-[#60a5fa]/20 flex items-center justify-center">
+            <Lock size={14} className="text-[#60a5fa]" />
           </div>
           <div>
-            <h2 className="text-sm font-black uppercase italic tracking-tight text-white leading-none">BlackBox Runner</h2>
-            <p className="text-[8px] font-bold uppercase text-white/30 tracking-widest">Tap · Double-tap = double jump</p>
+            <p className="text-[11px] font-black uppercase text-white/80">Secret Room</p>
+            <p className="text-[9px] text-white/30">Private · Invite only</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 border border-white/10 rounded-xl px-3 py-1.5 bg-white/5">
-          <Trophy size={11} className="text-[#fbbf24]" />
-          <span className="text-[10px] font-black text-white/70">{highScore}</span>
-        </div>
-      </div>
-
-      <div
-        className="relative"
-        style={{ width: GW, height: GH, touchAction: 'none', userSelect: 'none', WebkitTapHighlightColor: 'transparent' }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onPointerDown={handlePointerDown}
-      >
-        <canvas
-          ref={canvasRef}
-          width={GW}
-          height={GH}
-          style={{ display: 'block', borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}
-        />
-
-        <AnimatePresence>
-          {uiState === 'idle' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
-              <motion.div animate={{ y: [0, -8, 0], scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} className="w-20 h-20 rounded-[1.5rem] border-2 border-white/20 bg-[#111] flex items-center justify-center mb-6 overflow-hidden" style={{ boxShadow: '0 0 30px rgba(250,201,246,0.2)' }}>
-                <Image src="/logo 2.png" alt="BB" width={52} height={52} className="object-contain" />
-              </motion.div>
-              <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-1">BlackBox Runner</h2>
-              <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest mb-6">50 levels · tap to start</p>
-              <div className="flex flex-col items-center gap-1.5 mb-6">
-                {[['Tap = Jump'],['Double tap = Double jump'],['Swipe down = Crouch']].map(([icon, text]) => (
-                  <div key={text} className="flex items-center gap-2">
-                    <span className="text-sm">{icon}</span>
-                    <span className="text-[9px] font-black uppercase text-white/35 tracking-widest">{text}</span>
-                  </div>
+        <div className="p-4 flex flex-col gap-2">
+          {step >= 1 && (
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-[#60a5fa]/20 bg-[#60a5fa]/5 p-3">
+              <p className="text-[9px] font-black uppercase text-[#60a5fa]/70 mb-1">Enter Admin Code</p>
+              <div className="flex gap-1.5">
+                {['•', '•', '•', '•'].map((c, i) => (
+                  <div key={i} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/60 text-sm font-black">{step >= 2 ? '•' : ''}</div>
                 ))}
               </div>
-              <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.4, repeat: Infinity }} className="text-[13px] font-black uppercase tracking-[0.3em] text-white/60">TAP TO START</motion.div>
             </motion.div>
           )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {uiState === 'over' && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="absolute inset-0 flex flex-col items-center justify-center gap-4" style={{ borderRadius: '1.5rem', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}>
-              <motion.div animate={{ rotate: [0, -5, 5, -3, 0] }} transition={{ duration: 0.5 }} className="text-4xl mb-2">💥</motion.div>
-              <h2 className="text-2xl font-black uppercase italic tracking-tight text-white">Game Over</h2>
-              <div className="grid grid-cols-3 gap-3 w-64">
-                {[{ label: 'Score', val: score, icon: '⚡' }, { label: 'Level', val: level, icon: '🎯' }, { label: 'Best', val: highScore, icon: '🏆' }].map(({ label, val, icon }) => (
-                  <div key={label} className="flex flex-col items-center gap-1 p-3 rounded-2xl border border-white/10 bg-white/5">
-                    <span className="text-lg">{icon}</span>
-                    <span className="text-base font-black text-white">{val}</span>
-                    <span className="text-[8px] font-black uppercase text-white/30 tracking-widest">{label}</span>
-                  </div>
-                ))}
+          {step >= 2 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-[9px] text-white/30 font-bold uppercase tracking-widest">— or —</motion.div>
+          )}
+          {step >= 2 && (
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-[9px] font-black uppercase text-white/40 mb-1">Request to Join</p>
+              <div className="rounded-lg bg-black px-3 py-2 text-[10px] text-white/50 font-bold">
+                {step >= 3 ? 'Alex' : <span className="text-white/20">Your name...</span>}
+                {step === 3 && <Cursor />}
               </div>
-              <button
-                onPointerDown={(e) => { e.stopPropagation(); resetGame(); }}
-                className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-sm active:scale-95 transition-all mt-2"
-              >
-                <RotateCcw size={16} /> Play Again
-              </button>
             </motion.div>
           )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showLevelUp && (
-            <motion.div initial={{ opacity: 0, y: -20, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.85 }} className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-black/80 backdrop-blur-sm pointer-events-none" style={{ zIndex: 50 }}>
-              <Zap size={12} className="text-[#fbbf24]" />
-              <span className="text-[11px] font-black uppercase tracking-widest text-white">Level {level}!</span>
+          {step >= 4 && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full py-2.5 rounded-xl text-center text-[10px] font-black uppercase tracking-wider bg-white text-black">
+              Request Sent ✓
             </motion.div>
           )}
-        </AnimatePresence>
-
-        {uiState === 'playing' && (
-          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between px-4 py-2 rounded-2xl border border-white/10 bg-black/60 backdrop-blur-sm pointer-events-none">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: accentNow }} />
-              <span className="text-[10px] font-black uppercase text-white/50 tracking-widest">Lvl {level}</span>
-            </div>
-            <span className="text-[11px] font-black text-white/70 font-mono">{score}</span>
-            <div className="flex items-center gap-1.5">
-              <Trophy size={10} className="text-[#fbbf24]/60" />
-              <span className="text-[10px] font-black text-white/35 font-mono">{highScore}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 flex items-center gap-3 text-[9px] font-black uppercase text-white/20 tracking-widest flex-wrap justify-center px-4">
-        <span> Tap = Jump</span><span>·</span><span> Double tap = Double jump</span>
-      </div>
-      {uiState === 'playing' && (
-        <div className="mt-3 w-full px-4">
-          <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-            <motion.div className="h-full rounded-full" style={{ backgroundColor: accentNow }} animate={{ width: `${(level / 50) * 100}%` }} transition={{ duration: 0.5 }} />
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-[8px] font-black uppercase text-white/20">Level {level}/50</span>
-            <span className="text-[8px] font-black uppercase text-white/20">{Math.round((level / 50) * 100)}%</span>
-          </div>
         </div>
-      )}
-    </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        {[
+          { icon: '👑', label: 'Admin', desc: 'Enter code → see & approve/deny requests' },
+          { icon: '👤', label: 'Member', desc: 'Request with name → wait for approval' },
+        ].map((item, i) => (
+          <div key={i} className="rounded-xl p-3 border border-white/8 bg-white/[0.03]">
+            <span className="text-base">{item.icon}</span>
+            <p className="text-[10px] font-black text-white/70 mt-1">{item.label}</p>
+            <p className="text-[8px] text-white/30 leading-relaxed mt-0.5">{item.desc}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-white/35 leading-relaxed">
+        Private rooms show a <span className="text-[#60a5fa] font-black">🔒 lock badge</span> on the tile. The admin code is set at room creation — share it only with trusted people.
+      </p>
+    </IntroCard>
   );
 }
 
@@ -873,13 +586,134 @@ const slideVariants = {
   exit: (direction: number) => ({ x: direction < 0 ? '100%' : '-100%', opacity: 0 }),
 };
 
-export default function Home() {
+/* ── Filter chip — multi-select version ── */
+function FilterChip({
+  active, onClick, icon, label, activeColor, activeBg, activeBorder,
+}: {
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string;
+  activeColor: string; activeBg: string; activeBorder: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border transition-all shrink-0 active:scale-95"
+      style={{
+        borderColor: active ? activeBorder : 'rgba(255,255,255,0.1)',
+        background: active ? activeBg : 'rgba(255,255,255,0.04)',
+        color: active ? activeColor : 'rgba(255,255,255,0.4)',
+      }}
+    >
+      {icon}
+      <span className="text-[9px] font-black uppercase tracking-wider">{label}</span>
+      {active && <span className="w-1.5 h-1.5 rounded-full ml-0.5 shrink-0" style={{ background: activeColor }} />}
+    </button>
+  );
+}
+
+const FILTER_CHIPS = [
+  {
+    key: 'public' as RoomFilter,
+    label: 'Public',
+    icon: (
+      <svg width="10" height="9" viewBox="0 0 10 9" fill="none">
+        <circle cx="5" cy="4.5" r="3.6" stroke="currentColor" strokeWidth="1.1" fill="none"/>
+        <path d="M5 0.9C5 0.9 3 2.5 3 4.5s2 3.6 2 3.6" stroke="currentColor" strokeWidth="0.9" fill="none"/>
+        <path d="M5 0.9C5 0.9 7 2.5 7 4.5s-2 3.6-2 3.6" stroke="currentColor" strokeWidth="0.9" fill="none"/>
+        <line x1="1.4" y1="4.5" x2="8.6" y2="4.5" stroke="currentColor" strokeWidth="0.9"/>
+      </svg>
+    ),
+    activeColor: '#fac9f6', activeBg: 'rgba(250,201,246,0.08)', activeBorder: 'rgba(250,201,246,0.35)',
+  },
+  {
+    key: 'private' as RoomFilter,
+    label: 'Private',
+    icon: (
+      <svg width="9" height="10" viewBox="0 0 9 10" fill="none">
+        <rect x="1" y="4" width="7" height="5.5" rx="1.6" stroke="currentColor" strokeWidth="1.1" fill="none"/>
+        <path d="M2.8 4V3C2.8 1.9 6.2 1.9 6.2 3v1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+      </svg>
+    ),
+    activeColor: '#93c5fd', activeBg: 'rgba(96,165,250,0.08)', activeBorder: 'rgba(96,165,250,0.35)',
+  },
+  {
+    key: 'safe' as RoomFilter,
+    label: 'Safe',
+    icon: (
+      <svg width="9" height="10" viewBox="0 0 9 10" fill="none">
+        <path d="M4.5 0.8L8.2 2.4V5.6C8.2 7.7 6.6 9.1 4.5 9.7 2.4 9.1 0.8 7.7 0.8 5.6V2.4L4.5 0.8z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" fill="none"/>
+        <path d="M2.9 5l1.1 1.1 2.1-2.2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    activeColor: '#86efac', activeBg: 'rgba(74,222,128,0.08)', activeBorder: 'rgba(74,222,128,0.35)',
+  },
+  {
+    key: 'adult' as RoomFilter,
+    label: '18+',
+    icon: (
+      <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
+        <rect x="0.6" y="0.6" width="11.8" height="8.8" rx="2.4" stroke="currentColor" strokeWidth="1" fill="none"/>
+        <text x="6.5" y="7.8" textAnchor="middle" fontSize="5.5" fontWeight="900" fill="currentColor" fontFamily="system-ui,sans-serif">18+</text>
+      </svg>
+    ),
+    activeColor: '#f87171', activeBg: 'rgba(239,68,68,0.08)', activeBorder: 'rgba(239,68,68,0.35)',
+  },
+];
+
+function FilterChipRow({ activeFilters, onToggle }: { activeFilters: Set<RoomFilter>; onToggle: (f: RoomFilter) => void }) {
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+      {FILTER_CHIPS.map(chip => (
+        <FilterChip
+          key={chip.key}
+          active={activeFilters.has(chip.key)}
+          onClick={() => onToggle(chip.key)}
+          icon={chip.icon}
+          label={chip.label}
+          activeColor={chip.activeColor}
+          activeBg={chip.activeBg}
+          activeBorder={chip.activeBorder}
+        />
+      ))}
+    </div>
+  );
+}
+
+function applyFilters(rooms: any[], activeFilters: Set<RoomFilter>): any[] {
+  if (activeFilters.size === 0) return rooms;
+  return rooms.filter(r => {
+    const wantsPublic = activeFilters.has('public');
+    const wantsPrivate = activeFilters.has('private');
+    const wantsSafe = activeFilters.has('safe');
+    const wantsAdult = activeFilters.has('adult');
+    const visibilityMatch = (!wantsPublic && !wantsPrivate) || (wantsPublic && !r.isPrivate) || (wantsPrivate && r.isPrivate);
+    const contentMatch = (!wantsSafe && !wantsAdult) || (wantsSafe && !r.isAdult) || (wantsAdult && r.isAdult);
+    return visibilityMatch && contentMatch;
+  });
+}
+
+function filterLabel(activeFilters: Set<RoomFilter>): string {
+  if (activeFilters.size === 0) return 'All Rooms';
+  const parts: string[] = [];
+  if (activeFilters.has('public')) parts.push('Public');
+  if (activeFilters.has('private')) parts.push('Private');
+  if (activeFilters.has('safe')) parts.push('Safe');
+  if (activeFilters.has('adult')) parts.push('18+');
+  return parts.join(' · ') + ' Rooms';
+}
+
+/* ─────────────────────────────────────────────────────────────
+   HOME PAGE — default export required by Next.js
+   Intro shown only on first-ever visit (localStorage gate).
+   Back-navigation from a room never triggers the intro because
+   IntroScreen lives here, not in AppGuard or the room page.
+───────────────────────────────────────────────────────────── */
+export default function HomePage() {
+  const [showIntro, setShowIntro] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // All the rest of the home state
   const [currentIndex, setCurrentIndex] = useState(1);
   const [direction, setDirection] = useState(0);
-
-  const [showSplash, setShowSplash] = useState(false);
-  const [splashDone, setSplashDone] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   const [rooms, setRooms] = useState<any[]>([]);
   const [roomsLoaded, setRoomsLoaded] = useState(false);
@@ -888,42 +722,103 @@ export default function Home() {
   const [lastSeenMap, setLastSeenMap] = useState<any>({});
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState<Set<RoomFilter>>(new Set());
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [newRoom, setNewRoom] = useState({ title: '', color: '#22c55e' });
+  const [newRoom, setNewRoom] = useState({
+    title: '', color: '#22c55e', isAdult: false, isPrivate: false, adminCode: '',
+  });
   const [fetchError, setFetchError] = useState(false);
   const [bestDrop, setBestDrop] = useState<any>(null);
   const [bestPoll, setBestPoll] = useState<any>(null);
   const [copiedCreate, setCopiedCreate] = useState(false);
+
+  // Tracks whether the initial tab/scroll restore from sessionStorage has been applied
+  const scrollRestoredRef = useRef(false);
 
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFetchingRef = useRef(false);
   const roomsRef = useRef<HTMLDivElement>(null);
   const dragStartXRef = useRef(0);
 
+  const toggleFilter = (f: RoomFilter) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(f)) next.delete(f);
+      else next.add(f);
+      return next;
+    });
+  };
+
   const paginate = (newIndex: number) => {
     setDirection(newIndex > currentIndex ? 1 : -1);
     setCurrentIndex(newIndex);
   };
 
-  useEffect(() => { setSearchOpen(false); setSearchQuery(''); }, [currentIndex]);
+  useEffect(() => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setActiveFilters(new Set());
+  }, [currentIndex]);
 
-  // KEY FIX: All client-only initialization in one effect, after mount
+  // ── Restore tab + scroll when user comes back from a room ──
+  // We read both the saved tab index and the scroll position that were
+  // written by markRoomSeen() (or handleBack() in the room page).
+  // The scroll restore is deferred until AFTER the correct tab is
+  // rendered, using a ref flag so it fires exactly once per navigation.
+  useEffect(() => {
+    if (!mounted) return;
+    if (scrollRestoredRef.current) return;
+
+    const savedTab = sessionStorage.getItem('returnTab');
+    const savedScroll = sessionStorage.getItem('returnScrollY');
+
+    if (!savedTab && !savedScroll) return;
+
+    sessionStorage.removeItem('returnTab');
+    sessionStorage.removeItem('returnScrollY');
+
+    const tabIndex = savedTab ? parseInt(savedTab, 10) : 1;
+
+    // Switch to the correct tab first (no animation direction needed for a restore)
+    setDirection(0);
+    setCurrentIndex(tabIndex);
+
+    if (savedScroll) {
+      const target = parseInt(savedScroll, 10);
+      // Wait for the slide animation + layout to settle, then restore scroll
+      const raf1 = requestAnimationFrame(() => {
+        const raf2 = requestAnimationFrame(() => {
+          window.scrollTo({ top: target, behavior: 'instant' });
+          scrollRestoredRef.current = true;
+        });
+        return raf2;
+      });
+      return () => cancelAnimationFrame(raf1);
+    }
+
+    scrollRestoredRef.current = true;
+  }, [mounted]);
+
   useEffect(() => {
     setMounted(true);
-    setShowSplash(true);
-    sessionStorage.setItem('hasSeenIntro', 'true');
-
     const saved = JSON.parse(localStorage.getItem('savedRooms') || '[]');
     const av = parseInt(localStorage.getItem('avatarIndex') || '0');
     const seen2 = JSON.parse(localStorage.getItem('lastSeenMap') || '{}');
     setSavedIds(saved);
     setAvatarIndex(av);
     setLastSeenMap(seen2);
-
     const cached = localStorage.getItem('cachedRooms');
     if (cached) {
       try { setRooms(JSON.parse(cached)); setRoomsLoaded(true); } catch { }
+    }
+
+    // ── Intro: show only on very first visit ever ──
+    const hasSeen = localStorage.getItem('hasSeenIntro');
+    if (!hasSeen) {
+      setShowIntro(true);
+      localStorage.setItem('hasSeenIntro', '1');
     }
   }, []);
 
@@ -966,7 +861,12 @@ export default function Home() {
 
   const handleCreateRoom = async () => {
     if (!newRoom.title.trim()) return alert('Title is required!');
-    const res = await fetch(`${BASE_URL}/api/rooms`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newRoom) });
+    if (newRoom.isPrivate && !newRoom.adminCode.trim()) return alert('Admin code is required for private rooms!');
+    const res = await fetch(`${BASE_URL}/api/rooms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newRoom),
+    });
     if (!res.ok) return alert('Could not create room. Title may be taken.');
     const created = await res.json();
     const cs = JSON.parse(localStorage.getItem('savedRooms') || '[]');
@@ -975,11 +875,21 @@ export default function Home() {
       setSavedIds(upd);
       localStorage.setItem('savedRooms', JSON.stringify(upd));
     }
-    setNewRoom({ title: '', color: '#22c55e' }); setShowAddModal(false);
+    setNewRoom({ title: '', color: '#22c55e', isAdult: false, isPrivate: false, adminCode: '' });
+    setShowAddModal(false);
     fetchRooms(); paginate(2);
   };
 
+  // ── Save current tab index AND scroll position so the room page can
+  //    write them back into sessionStorage on its back-navigation.
+  //    The room page reads 'returnTab' and 'returnScrollY' and sets them
+  //    before calling router.back(), so this page's restore effect picks
+  //    them up on mount.
   const markRoomSeen = (roomId: string) => {
+    // Persist scroll position and active tab for restore after back-navigation
+    sessionStorage.setItem('returnScrollY', String(window.scrollY));
+    sessionStorage.setItem('returnTab', String(currentIndex));
+
     const upd = { ...lastSeenMap, [roomId]: Date.now() };
     setLastSeenMap(upd);
     localStorage.setItem('lastSeenMap', JSON.stringify(upd));
@@ -1005,70 +915,71 @@ export default function Home() {
 
   const scrollToRooms = () => roomsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  const filtered = rooms
-    .filter(r => currentIndex === 2 ? savedIds.includes(r._id) : true)
-    .filter(r => r.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => currentIndex === 2 ? new Date(b.lastDropAt).getTime() - new Date(a.lastDropAt).getTime() : 0);
+  const filtered = applyFilters(
+    rooms
+      .filter(r => currentIndex === 2 ? savedIds.includes(r._id) : true)
+      .filter(r => r.title.toLowerCase().includes(searchQuery.toLowerCase())),
+    activeFilters
+  ).sort((a, b) => currentIndex === 2 ? new Date(b.lastDropAt).getTime() - new Date(a.lastDropAt).getTime() : 0);
 
-  // Don't render localStorage-dependent UI until mounted (prevents hydration mismatch)
   if (!mounted) {
     return (
       <main className="w-full max-w-md mx-auto min-h-screen bg-black text-white flex items-center justify-center">
-        <div suppressHydrationWarning className="text-white/20 text-xs font-black uppercase tracking-widest animate-pulse">
-          Loading...
-        </div>
+        <div suppressHydrationWarning className="text-white/20 text-xs font-black uppercase tracking-widest animate-pulse">Loading...</div>
       </main>
     );
   }
 
   return (
     <>
-      <AnimatePresence onExitComplete={() => setSplashDone(true)}>
-        {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
-      </AnimatePresence>
+      {/* Intro overlay — only renders on first ever visit */}
+      {showIntro && <IntroScreen onFinish={() => setShowIntro(false)} />}
 
       <main
         suppressHydrationWarning
-        className={`w-full max-w-md mx-auto min-h-screen pb-28 relative select-none overflow-x-hidden bg-black text-white transition-opacity duration-300 ${splashDone || !showSplash ? 'opacity-100' : 'opacity-0'}`}
+        className="w-full max-w-md mx-auto min-h-screen pb-28 relative select-none overflow-x-hidden bg-black text-white"
       >
-        <header className="pt-10 px-4 flex justify-center">
+        {/* ── HEADER ── */}
+        <header className="pt-10 px-4 flex items-center justify-center">
           <h1 className="text-3xl font-black tracking-tighter text-center">
             B<span className="mirror">L</span>ACK BOX
           </h1>
         </header>
 
-        <div className="flex justify-center items-center gap-3 mt-5 px-4 z-50 relative">
-          <button
-            onClick={() => paginate(0)}
-            className={`w-10 h-10 rounded-full border flex items-center justify-center overflow-hidden shrink-0 transition-all ${currentIndex === 0 ? 'border-[#fac9f6] scale-110' : 'border-white/10 opacity-50'}`}
-            style={{ boxShadow: currentIndex === 0 ? '0 0 14px rgba(250,201,246,0.25)' : undefined }}
+        {/* ── 2-TAB CAPSULE ── */}
+        <div className="flex justify-center mt-5 px-4 z-50 relative">
+          <div
+            className="relative flex items-center bg-[#111] border border-white/10 rounded-full p-1 w-full max-w-[240px]"
+            style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05)' }}
           >
-            <Image src="/logo 2.png" alt="Intro" width={24} height={24} style={{ mixBlendMode: 'screen' }} />
-          </button>
-          <div className="relative flex items-center bg-[#111] border border-white/10 rounded-full p-1 flex-1 max-w-[220px]" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05)' }}>
             <motion.div
               className="absolute top-1 bottom-1 rounded-full bg-white/10"
-              animate={{ left: currentIndex === 1 ? 4 : 'calc(50% + 0px)', width: 'calc(50% - 4px)', opacity: currentIndex === 1 || currentIndex === 2 ? 1 : 0 }}
+              animate={{ left: currentIndex === 1 ? 4 : 'calc(50% + 0px)', width: 'calc(50% - 4px)' }}
               transition={{ type: 'spring', stiffness: 320, damping: 30 }}
             />
-            <button onClick={() => paginate(1)} className={`relative z-10 flex-1 py-2 text-[11px] font-black uppercase tracking-widest rounded-full transition-colors duration-200 ${currentIndex === 1 ? 'text-[#fac9f6]' : 'text-white/40'}`}>Browse</button>
-            <button onClick={() => paginate(2)} className={`relative z-10 flex-1 py-2 text-[11px] font-black uppercase tracking-widest rounded-full transition-colors duration-200 ${currentIndex === 2 ? 'text-[#fac9f6]' : 'text-white/40'}`}>Saved</button>
+            <button
+              onClick={() => paginate(1)}
+              className={`relative z-10 flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-full transition-colors duration-200 ${currentIndex === 1 ? 'text-[#fac9f6]' : 'text-white/40'}`}
+            >
+              Browse
+            </button>
+            <button
+              onClick={() => paginate(2)}
+              className={`relative z-10 flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-full transition-colors duration-200 ${currentIndex === 2 ? 'text-[#fac9f6]' : 'text-white/40'}`}
+            >
+              Saved
+            </button>
           </div>
-          <button
-            onClick={() => paginate(3)}
-            className={`w-10 h-10 rounded-full border flex items-center justify-center overflow-hidden shrink-0 transition-all ${currentIndex === 3 ? 'border-[#fac9f6] scale-110' : 'border-white/10 opacity-50'}`}
-          >
-            <Image src="/logo 3.png" alt="Game" width={22} height={22} style={{ mixBlendMode: 'screen' }} />
-          </button>
         </div>
 
+        {/* ── SLIDE PAGES ── */}
         <div
           className="relative mt-4 touch-pan-y w-full overflow-hidden"
           onPointerDown={(e) => { dragStartXRef.current = e.clientX; }}
           onPointerUp={(e) => {
             const diff = e.clientX - dragStartXRef.current;
             if (Math.abs(diff) < 40) return;
-            if (diff < 0 && currentIndex < 3) paginate(currentIndex + 1);
+            if (diff < 0 && currentIndex < 2) paginate(currentIndex + 1);
             else if (diff > 0 && currentIndex > 0) paginate(currentIndex - 1);
           }}
         >
@@ -1081,18 +992,27 @@ export default function Home() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="w-full"
             >
+
+              {/* ── INTRO PAGE (index 0) ── */}
               {currentIndex === 0 && (
                 <div className="px-4 pt-6 pb-10 overflow-y-auto">
-                  <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-                    className="rounded-[2rem] p-6 border border-white/10 relative overflow-hidden mb-2" style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #111 100%)' }}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+                    className="rounded-[2rem] p-6 border border-white/10 relative overflow-hidden mb-2"
+                    style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #111 100%)' }}
+                  >
                     <div className="absolute inset-0 opacity-30" style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(250,201,246,0.15), transparent 60%)' }} />
                     <div className="relative z-10">
                       <div className="flex items-center gap-2 mb-3">
                         <LiveDot color="#fac9f6" />
                         <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Anonymous Platform</span>
                       </div>
-                      <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-2 leading-tight">The Anonymous<br />Gossip Platform</h2>
-                      <p className="text-[11px] text-white/50 leading-relaxed">Built for college & school students to chat, rant, and gossip freely — no accounts, no identity, no judgment.</p>
+                      <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-2 leading-tight">
+                        The Anonymous<br />Gossip Platform
+                      </h2>
+                      <p className="text-[11px] text-white/50 leading-relaxed">
+                        Built for college &amp; school students to chat, rant, and gossip freely — no accounts, no identity, no judgment.
+                      </p>
                     </div>
                   </motion.div>
                   <SectionLabel text="How It Works" />
@@ -1102,49 +1022,79 @@ export default function Home() {
                     <PosterModeration />
                     <PosterPolls />
                   </div>
-                  <SectionLabel text="The Builder" />
-                  <DevProfile />
+                  <SectionLabel text="New Features" />
+                  <div className="flex flex-col gap-4 pb-8">
+                    <PosterAdultRoom />
+                    <PosterPrivateRoom />
+                  </div>
                 </div>
               )}
 
+              {/* ── BROWSE PAGE (index 1) ── */}
               {currentIndex === 1 && (
                 <div className="mt-5">
-                  <div className="px-4 flex items-center gap-2 h-11">
-                    <button onClick={scrollToRooms} className="flex items-center gap-1.5 border border-white/10 bg-white/5 active:bg-white/10 px-3 h-full rounded-2xl text-[10px] font-black uppercase shrink-0 transition-all">
-                      <Flame size={11} className="text-[#fac9f6]" fill="#fac9f6" />
-                      {!searchOpen && <span>Trending</span>}
-                    </button>
-                    <div className={`flex items-center h-full flex-1 bg-white/5 rounded-2xl border border-white/10 transition-all duration-300 ${searchOpen ? 'ring-1 ring-[#fac9f6]/30 bg-white/10' : ''}`}>
-                      <button onClick={() => setSearchOpen(p => !p)} className="w-11 h-full flex items-center justify-center shrink-0">
-                        <Search size={16} className={searchOpen ? 'text-[#fac9f6]' : 'text-white/40'} />
+                  <div className="px-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 h-11">
+                      <button
+                        onClick={scrollToRooms}
+                        className="flex items-center gap-1.5 border border-white/10 bg-white/5 active:bg-white/10 px-3 h-full rounded-2xl text-[10px] font-black uppercase shrink-0 transition-all"
+                      >
+                        <Flame size={11} className="text-[#fac9f6]" fill="#fac9f6" />
+                        {!searchOpen && <span className="text-white/70">Trending</span>}
                       </button>
-                      <AnimatePresence>
-                        {searchOpen && (
-                          <motion.input initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }}
-                            autoFocus className="flex-1 pr-3 outline-none text-sm bg-transparent text-white placeholder:text-white/20 font-medium min-w-0"
-                            placeholder="Find a vibe..." onChange={e => setSearchQuery(e.target.value)} />
-                        )}
-                      </AnimatePresence>
+                      <div className={`flex items-center h-full flex-1 bg-white/5 rounded-2xl border border-white/10 transition-all duration-300 ${searchOpen ? 'ring-1 ring-[#fac9f6]/30 bg-white/10' : ''}`}>
+                        <button onClick={() => setSearchOpen(p => !p)} className="w-11 h-full flex items-center justify-center shrink-0">
+                          <Search size={16} className={searchOpen ? 'text-[#fac9f6]' : 'text-white/40'} />
+                        </button>
+                        <AnimatePresence>
+                          {searchOpen && (
+                            <motion.input
+                              initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }}
+                              autoFocus
+                              className="flex-1 pr-3 outline-none text-sm bg-transparent text-white placeholder:text-white/20 font-medium min-w-0"
+                              placeholder="Find a vibe..."
+                              onChange={e => setSearchQuery(e.target.value)}
+                            />
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </div>
+                    <FilterChipRow activeFilters={activeFilters} onToggle={toggleFilter} />
                   </div>
+
                   <div className="px-4 mt-4">
                     <AnimatedBlurb onReadMore={() => paginate(0)} />
                   </div>
+
                   {bestDrop?.drop && (
                     <div className="px-4 mt-5">
-                      <div className="flex items-center gap-2 mb-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Today&apos;s Best Drop</span><div className="h-px flex-1 bg-white/10" /></div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-px flex-1 bg-white/10" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Today&apos;s Best Drop</span>
+                        <div className="h-px flex-1 bg-white/10" />
+                      </div>
                       {bestDrop.room && (
-                        <Link href={`/room/${bestDrop.room.slug}`} className="flex items-center gap-2 mb-2 px-1">
+                        <Link
+                          href={`/room/${bestDrop.room.slug}`}
+                          className="flex items-center gap-2 mb-2 px-1"
+                          onClick={() => {
+                            sessionStorage.setItem('returnScrollY', String(window.scrollY));
+                            sessionStorage.setItem('returnTab', String(currentIndex));
+                          }}
+                        >
                           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: bestDrop.room.color }} />
                           <span className="text-[10px] font-black uppercase text-white/35 tracking-widest truncate">{bestDrop.room.title}</span>
                           <ChevronRight size={9} className="text-white/20 flex-shrink-0" />
                         </Link>
                       )}
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
                         className="rounded-2xl border border-white/10 p-4 relative overflow-hidden"
-                        style={{ background: `linear-gradient(135deg, ${bestDrop.room?.color || '#fac9f6'}10 0%, #0a0a0a 100%)`, borderLeft: `3px solid ${bestDrop.room?.color || '#fac9f6'}40` }}>
+                        style={{ background: `linear-gradient(135deg, ${bestDrop.room?.color || '#fac9f6'}10 0%, #0a0a0a 100%)`, borderLeft: `3px solid ${bestDrop.room?.color || '#fac9f6'}40` }}
+                      >
                         <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">
-                          <span className="text-[8px]">🏆</span><span className="text-[8px] font-black uppercase text-white/40">Top Drop</span>
+                          <span className="text-[8px]">🏆</span>
+                          <span className="text-[8px] font-black uppercase text-white/40">Top Drop</span>
                         </div>
                         <div className="flex items-center gap-2 mb-3">
                           <img src={`/avatars/${bestDrop.drop.avatarIndex ?? 0}.png`} className="w-8 h-8 rounded-full border border-white/20 flex-shrink-0" alt="" />
@@ -1162,21 +1112,36 @@ export default function Home() {
                       </motion.div>
                     </div>
                   )}
+
                   {bestPoll?.poll && (
                     <div className="px-4 mt-5">
-                      <div className="flex items-center gap-2 mb-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Today&apos;s Top Poll</span><div className="h-px flex-1 bg-white/10" /></div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-px flex-1 bg-white/10" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Today&apos;s Top Poll</span>
+                        <div className="h-px flex-1 bg-white/10" />
+                      </div>
                       {bestPoll.room && (
-                        <Link href={`/room/${bestPoll.room.slug}`} className="flex items-center gap-2 mb-2 px-1">
+                        <Link
+                          href={`/room/${bestPoll.room.slug}`}
+                          className="flex items-center gap-2 mb-2 px-1"
+                          onClick={() => {
+                            sessionStorage.setItem('returnScrollY', String(window.scrollY));
+                            sessionStorage.setItem('returnTab', String(currentIndex));
+                          }}
+                        >
                           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: bestPoll.room.color }} />
                           <span className="text-[10px] font-black uppercase text-white/35 tracking-widest truncate">{bestPoll.room.title}</span>
                           <ChevronRight size={9} className="text-white/20 flex-shrink-0" />
                         </Link>
                       )}
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}
                         className="rounded-2xl border border-white/10 p-4 relative"
-                        style={{ background: 'linear-gradient(135deg, rgba(167,139,250,0.07) 0%, #0a0a0a 100%)', borderLeft: '3px solid rgba(167,139,250,0.35)' }}>
+                        style={{ background: 'linear-gradient(135deg, rgba(167,139,250,0.07) 0%, #0a0a0a 100%)', borderLeft: '3px solid rgba(167,139,250,0.35)' }}
+                      >
                         <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">
-                          <BarChart2 size={8} className="text-[#a78bfa]" /><span className="text-[8px] font-black uppercase text-white/40">Top Poll</span>
+                          <BarChart2 size={8} className="text-[#a78bfa]" />
+                          <span className="text-[8px] font-black uppercase text-white/40">Top Poll</span>
                         </div>
                         <div className="flex items-center gap-2 mb-3">
                           <img src={`/avatars/${bestPoll.poll.avatarIndex ?? 0}.png`} className="w-8 h-8 rounded-full border border-white/20 flex-shrink-0" alt="" />
@@ -1208,8 +1173,13 @@ export default function Home() {
                       </motion.div>
                     </div>
                   )}
+
                   <div ref={roomsRef} className="px-4 mt-6">
-                    <div className="flex items-center gap-3 mb-4"><div className="h-px flex-1 bg-white/10" /><span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">All Rooms</span><div className="h-px flex-1 bg-white/10" /></div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-px flex-1 bg-white/10" />
+                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">{filterLabel(activeFilters)}</span>
+                      <div className="h-px flex-1 bg-white/10" />
+                    </div>
                     {fetchError && rooms.length === 0 && (
                       <div className="flex flex-col items-center gap-3 py-10">
                         <p className="text-white/30 text-xs font-black uppercase tracking-widest">Connection issue</p>
@@ -1223,31 +1193,53 @@ export default function Home() {
                       {roomsLoaded && filtered.map((room: any) => (
                         <RoomTile key={room._id} room={room} isSaved={savedIds.includes(room._id)} onSave={() => toggleSave(room._id)} onOpen={() => markRoomSeen(room._id)} />
                       ))}
+                      {roomsLoaded && filtered.length === 0 && !fetchError && (
+                        <div className="col-span-2 flex flex-col items-center gap-2 py-10">
+                          <p className="text-white/20 text-xs font-black uppercase tracking-widest">No rooms found</p>
+                          {activeFilters.size > 0 && (
+                            <button onClick={() => setActiveFilters(new Set())} className="text-[#fac9f6] text-xs font-black uppercase mt-1">Clear filters →</button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* ── SAVED PAGE (index 2) ── */}
               {currentIndex === 2 && (
                 <div className="px-4 mt-7 flex flex-col items-center gap-5">
                   <div className="flex flex-col items-center">
-                    <div onClick={() => setShowAvatarModal(true)} className="w-20 h-20 rounded-full border-4 border-[#fac9f6] p-1 cursor-pointer active:scale-95 transition-transform" style={{ boxShadow: '0 0 18px rgba(250,201,246,0.25)' }}>
+                    <div
+                      onClick={() => setShowAvatarModal(true)}
+                      className="w-20 h-20 rounded-full border-4 border-[#fac9f6] p-1 cursor-pointer active:scale-95 transition-transform"
+                      style={{ boxShadow: '0 0 18px rgba(250,201,246,0.25)' }}
+                    >
                       <img src={`/avatars/${avatarIndex}.png`} className="w-full h-full rounded-full object-cover" alt="Avatar" />
                     </div>
                     <button onClick={() => setShowAvatarModal(true)} className="mt-1.5 text-[9px] font-black uppercase text-white/30 tracking-widest">Edit Bitmoji</button>
                   </div>
-                  <div className={`flex items-center w-full h-11 bg-white/5 rounded-2xl border border-white/10 transition-all duration-300 ${searchOpen ? 'ring-1 ring-[#fac9f6]/30 bg-white/10' : ''}`}>
-                    <button onClick={() => setSearchOpen(p => !p)} className="w-11 h-full flex items-center justify-center shrink-0">
-                      <Search size={16} className={searchOpen ? 'text-[#fac9f6]' : 'text-white/40'} />
-                    </button>
-                    <AnimatePresence>
-                      {searchOpen && (
-                        <motion.input initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }}
-                          autoFocus className="flex-1 pr-4 outline-none text-sm bg-transparent text-white placeholder:text-white/20 font-medium min-w-0"
-                          placeholder="Search saved rooms..." onChange={e => setSearchQuery(e.target.value)} />
-                      )}
-                    </AnimatePresence>
+
+                  <div className="flex flex-col gap-2 w-full">
+                    <div className={`flex items-center w-full h-11 bg-white/5 rounded-2xl border border-white/10 transition-all duration-300 ${searchOpen ? 'ring-1 ring-[#fac9f6]/30 bg-white/10' : ''}`}>
+                      <button onClick={() => setSearchOpen(p => !p)} className="w-11 h-full flex items-center justify-center shrink-0">
+                        <Search size={16} className={searchOpen ? 'text-[#fac9f6]' : 'text-white/40'} />
+                      </button>
+                      <AnimatePresence>
+                        {searchOpen && (
+                          <motion.input
+                            initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }}
+                            autoFocus
+                            className="flex-1 pr-4 outline-none text-sm bg-transparent text-white placeholder:text-white/20 font-medium min-w-0"
+                            placeholder="Search saved rooms..."
+                            onChange={e => setSearchQuery(e.target.value)}
+                          />
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    <FilterChipRow activeFilters={activeFilters} onToggle={toggleFilter} />
                   </div>
+
                   <div className="grid grid-cols-2 gap-4 w-full pb-24">
                     {fetchError && rooms.length === 0 && (
                       <div className="col-span-2 flex flex-col items-center gap-3 py-10">
@@ -1270,72 +1262,176 @@ export default function Home() {
                     })}
                     {roomsLoaded && filtered.length === 0 && !fetchError && (
                       <div className="col-span-2 flex flex-col items-center gap-2 py-10">
-                        <p className="text-white/20 text-xs font-black uppercase tracking-widest">No saved rooms yet</p>
-                        <button onClick={() => paginate(1)} className="text-[#fac9f6] text-xs font-black uppercase mt-1">Browse rooms →</button>
+                        <p className="text-white/20 text-xs font-black uppercase tracking-widest">
+                          {savedIds.length === 0 ? 'No saved rooms yet' : 'No rooms match this filter'}
+                        </p>
+                        {activeFilters.size > 0 ? (
+                          <button onClick={() => setActiveFilters(new Set())} className="text-[#fac9f6] text-xs font-black uppercase mt-1">Clear filters →</button>
+                        ) : (
+                          <button onClick={() => paginate(1)} className="text-[#fac9f6] text-xs font-black uppercase mt-1">Browse rooms →</button>
+                        )}
                       </div>
                     )}
                   </div>
-                </div>
-              )}
-
-              {currentIndex === 3 && (
-                <div className="mt-4">
-                  <GameView onBack={() => paginate(2)} />
                 </div>
               )}
             </motion.div>
           </AnimatePresence>
         </div>
 
+        {/* ── FAB: Create Room (Saved tab) ── */}
         <AnimatePresence>
           {currentIndex === 2 && (
-            <motion.button key="fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
+            <motion.button
+              key="fab"
+              initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20 }}
               onClick={() => setShowAddModal(true)}
-              className="fixed bottom-7 right-5 w-14 h-14 bg-[#fac9f6] text-black rounded-full flex items-center justify-center shadow-2xl z-[60] active:scale-90 transition-transform">
+              className="fixed bottom-7 right-5 w-14 h-14 bg-[#fac9f6] text-black rounded-full flex items-center justify-center shadow-2xl z-[60] active:scale-90 transition-transform"
+            >
               <Plus size={28} />
             </motion.button>
           )}
         </AnimatePresence>
 
+        {/* ── CREATE ROOM MODAL ── */}
         <AnimatePresence>
           {showAddModal && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-end justify-center p-0"
-              onClick={(e) => { if (e.target === e.currentTarget) setShowAddModal(false); }}>
-              <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="bg-[#0a0a0a] w-full max-w-md rounded-t-[2rem] px-5 pt-5 pb-10 border-t border-x border-white/10 relative shadow-2xl">
+              onClick={(e) => { if (e.target === e.currentTarget) setShowAddModal(false); }}
+            >
+              <motion.div
+                initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="bg-[#0a0a0a] w-full max-w-md rounded-t-[2rem] px-5 pt-5 pb-10 border-t border-x border-white/10 relative shadow-2xl overflow-y-auto max-h-[90vh]"
+              >
                 <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
                 <button onClick={() => setShowAddModal(false)} className="absolute top-5 right-5 text-white/40 p-1"><X size={20} /></button>
                 <h2 className="text-xl font-black italic uppercase mb-5">Create Room</h2>
+
                 <label className="text-[10px] font-black uppercase text-white/40 mb-1.5 block">Room Title</label>
-                <input className="w-full border border-white/10 bg-black p-3.5 rounded-2xl mb-5 outline-none font-bold text-white placeholder:text-white/30 text-sm"
-                  placeholder="E.g. Library Gossips" value={newRoom.title} onChange={e => setNewRoom({ ...newRoom, title: e.target.value })} />
+                <input
+                  className="w-full border border-white/10 bg-black p-3.5 rounded-2xl mb-5 outline-none font-bold text-white placeholder:text-white/30 text-sm"
+                  placeholder="E.g. Library Gossips"
+                  value={newRoom.title}
+                  onChange={e => setNewRoom({ ...newRoom, title: e.target.value })}
+                />
+
                 <label className="text-[10px] font-black uppercase text-white/40 mb-1.5 block">Theme Color</label>
-                <input type="color" className="w-full h-11 rounded-xl mb-5 cursor-pointer" value={newRoom.color} onChange={e => setNewRoom({ ...newRoom, color: e.target.value })} />
+                <input
+                  type="color"
+                  className="w-full h-11 rounded-xl mb-5 cursor-pointer"
+                  value={newRoom.color}
+                  onChange={e => setNewRoom({ ...newRoom, color: e.target.value })}
+                />
+
+                <label className="text-[10px] font-black uppercase text-white/40 mb-2 block">Room Type</label>
+                <div className="grid grid-cols-2 gap-2 mb-5">
+                  {[
+                    { key: false, icon: '🛡️', label: 'Safe Room', sub: 'Language filtered' },
+                    { key: true, icon: '🔞', label: 'Adult Room', sub: '18+ only, unfiltered' },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.key)}
+                      onClick={() => setNewRoom(r => ({ ...r, isAdult: opt.key }))}
+                      className="flex flex-col items-start gap-1 p-3 rounded-2xl border transition-all"
+                      style={{
+                        borderColor: newRoom.isAdult === opt.key ? (opt.key ? '#ef4444' : '#4ade80') + '80' : 'rgba(255,255,255,0.1)',
+                        background: newRoom.isAdult === opt.key ? (opt.key ? 'rgba(239,68,68,0.08)' : 'rgba(74,222,128,0.06)') : 'rgba(255,255,255,0.03)',
+                      }}
+                    >
+                      <span className="text-xl">{opt.icon}</span>
+                      <span className="text-[11px] font-black text-white/80">{opt.label}</span>
+                      <span className="text-[9px] text-white/35">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+                {newRoom.isAdult && (
+                  <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="mb-5 p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 flex items-start gap-2">
+                    <ShieldAlert size={14} className="text-yellow-400 shrink-0 mt-0.5" />
+                    <p className="text-[9px] text-yellow-300/60 leading-relaxed">Adult language allowed. CSAM and terrorism-related content are always blocked.</p>
+                  </motion.div>
+                )}
+
+                <label className="text-[10px] font-black uppercase text-white/40 mb-2 block">Visibility</label>
+                <div className="grid grid-cols-2 gap-2 mb-5">
+                  {[
+                    { key: false, icon: '🌐', label: 'Public', sub: 'Anyone can join' },
+                    { key: true, icon: '🔒', label: 'Private', sub: 'Invite only' },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.key)}
+                      onClick={() => setNewRoom(r => ({ ...r, isPrivate: opt.key, adminCode: '' }))}
+                      className="flex flex-col items-start gap-1 p-3 rounded-2xl border transition-all"
+                      style={{
+                        borderColor: newRoom.isPrivate === opt.key ? '#60a5fa80' : 'rgba(255,255,255,0.1)',
+                        background: newRoom.isPrivate === opt.key ? 'rgba(96,165,250,0.07)' : 'rgba(255,255,255,0.03)',
+                      }}
+                    >
+                      <span className="text-xl">{opt.icon}</span>
+                      <span className="text-[11px] font-black text-white/80">{opt.label}</span>
+                      <span className="text-[9px] text-white/35">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {newRoom.isPrivate && (
+                  <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+                    <label className="text-[10px] font-black uppercase text-[#60a5fa]/70 mb-1.5 flex items-center gap-1.5 block">
+                      <Lock size={10} /> Admin Code <span className="text-white/30">(keep this secret)</span>
+                    </label>
+                    <input
+                      className="w-full border border-[#60a5fa]/30 bg-black p-3.5 rounded-2xl outline-none font-bold text-white placeholder:text-white/20 text-sm tracking-[0.2em]"
+                      placeholder="E.g. blackbox123"
+                      value={newRoom.adminCode}
+                      onChange={e => setNewRoom({ ...newRoom, adminCode: e.target.value })}
+                    />
+                    <p className="text-[9px] text-white/25 mt-1.5">Enter this code on the room page to manage join requests.</p>
+                  </motion.div>
+                )}
+
                 <p className="text-red-500 text-[10px] font-black uppercase mb-1">Don&apos;t forget to copy the link</p>
                 <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-3 rounded-xl mb-5">
-                  <span className="text-[10px] text-white/50 font-mono truncate flex-1">blackbox-omega-peach.vercel.app/room/{newRoom.title.toLowerCase().replace(/ /g, '-')}</span>
-                  <button onClick={() => {
-                    navigator.clipboard.writeText(`blackbox-omega-peach.vercel.app/room/${newRoom.title.toLowerCase().replace(/ /g, '-')}`);
-                    setCopiedCreate(true); setTimeout(() => setCopiedCreate(false), 2000);
-                  }} className="shrink-0 p-1">
+                  <span className="text-[10px] text-white/50 font-mono truncate flex-1">
+                    blackbox-omega-peach.vercel.app/room/{newRoom.title.toLowerCase().replace(/ /g, '-')}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`blackbox-omega-peach.vercel.app/room/${newRoom.title.toLowerCase().replace(/ /g, '-')}`);
+                      setCopiedCreate(true); setTimeout(() => setCopiedCreate(false), 2000);
+                    }}
+                    className="shrink-0 p-1"
+                  >
                     {copiedCreate ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="text-white/40" />}
                   </button>
                 </div>
-                <button onClick={handleCreateRoom} className="w-full bg-white text-black py-3.5 rounded-2xl font-black uppercase tracking-widest text-sm active:scale-95 transition-all">Create</button>
+
+                <button
+                  onClick={handleCreateRoom}
+                  className="w-full bg-white text-black py-3.5 rounded-2xl font-black uppercase tracking-widest text-sm active:scale-95 transition-all"
+                >
+                  Create
+                </button>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
+        {/* ── AVATAR MODAL ── */}
         <AnimatePresence>
           {showAvatarModal && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-end justify-center p-0"
-              onClick={(e) => { if (e.target === e.currentTarget) setShowAvatarModal(false); }}>
-              <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="w-full max-w-md rounded-t-[2rem] px-5 pt-5 pb-10 border-t border-x border-white/10 max-h-[75vh] overflow-y-auto bg-[#0a0a0a]">
+              onClick={(e) => { if (e.target === e.currentTarget) setShowAvatarModal(false); }}
+            >
+              <motion.div
+                initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="w-full max-w-md rounded-t-[2rem] px-5 pt-5 pb-10 border-t border-x border-white/10 max-h-[75vh] overflow-y-auto bg-[#0a0a0a]"
+              >
                 <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
                 <div className="flex justify-between items-center mb-5">
                   <h2 className="text-lg font-black uppercase italic">Pick Your Bitmoji</h2>
@@ -1343,8 +1439,11 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                   {[...Array(19)].map((_, i) => (
-                    <div key={i} onClick={() => selectAvatar(i)}
-                      className={`aspect-square rounded-full border-2 p-1 cursor-pointer transition-all active:scale-90 ${avatarIndex === i ? 'border-[#fac9f6] scale-110' : 'border-white/10'}`}>
+                    <div
+                      key={i}
+                      onClick={() => selectAvatar(i)}
+                      className={`aspect-square rounded-full border-2 p-1 cursor-pointer transition-all active:scale-90 ${avatarIndex === i ? 'border-[#fac9f6] scale-110' : 'border-white/10'}`}
+                    >
                       <img src={`/avatars/${i}.png`} className="w-full h-full rounded-full object-cover" alt="" />
                     </div>
                   ))}
