@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Heart, ThumbsDown, Copy, Plus, X, ArrowLeft, Check,
   MessageCircle, BarChart2, Users, Lock, ShieldCheck,
@@ -12,7 +12,7 @@ import AppGuard from '@/components/AppGuard';
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const POLL_MS = 3000;
 
-/* ── helpers ────────────────────────────────────────────── */
+/* ── helpers ── */
 function getOrCreateUserId(): string {
   if (typeof window === 'undefined') return 'anon';
   let id = localStorage.getItem('userId');
@@ -47,7 +47,7 @@ function ErrorMsg({ text, word }: { text: string; word?: string | null }) {
   );
 }
 
-/* ── PRIVATE ROOM GATE ───────────────────────────────────── */
+/* ── PRIVATE ROOM GATE ── */
 function PrivateRoomGate({
   room,
   userId,
@@ -63,7 +63,6 @@ function PrivateRoomGate({
   const [reqName, setReqName] = useState('');
   const [reqError, setReqError] = useState('');
   const [loading, setLoading] = useState(false);
-
   const [alreadyApproved, setAlreadyApproved] = useState(false);
   const [checkingApproval, setCheckingApproval] = useState(true);
 
@@ -105,9 +104,7 @@ function PrivateRoomGate({
     }
   };
 
-  const handleEnterRoom = () => {
-    onGranted(false);
-  };
+  const handleEnterRoom = () => onGranted(false);
 
   const handleJoinRequest = async () => {
     if (!reqName.trim()) { setReqError('Enter your name.'); return; }
@@ -140,21 +137,16 @@ function PrivateRoomGate({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="w-full max-w-sm"
       >
-        {/* Room header */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-[1.5rem] border-2 border-[#60a5fa]/30 bg-[#60a5fa]/10 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(96,165,250,0.15)]">
             <Lock size={28} className="text-[#60a5fa]" />
           </div>
-          <h1
-            className="text-xl font-black uppercase italic tracking-tight text-white mb-1"
-            style={{ color: room.color }}
-          >
+          <h1 className="text-xl font-black uppercase italic tracking-tight text-white mb-1" style={{ color: room.color }}>
             {room.title}
           </h1>
           <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Private Room</p>
         </div>
 
-        {/* CHOOSE MODE */}
         {mode === 'choose' && (
           <div className="rounded-[2rem] border border-white/10 p-6 bg-[#0a0a0a] flex flex-col gap-3">
             <button
@@ -213,17 +205,13 @@ function PrivateRoomGate({
           </div>
         )}
 
-        {/* ADMIN CODE */}
         {mode === 'admin' && (
           <motion.div
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
             className="rounded-[2rem] border border-[#60a5fa]/20 p-6 bg-[#0a0a0a]"
           >
             <div className="flex items-center gap-2 mb-5">
-              <button
-                onClick={() => { setMode('choose'); setCode(''); setCodeError(''); }}
-                className="p-1 text-white/40 hover:text-white transition-colors"
-              >
+              <button onClick={() => { setMode('choose'); setCode(''); setCodeError(''); }} className="p-1 text-white/40 hover:text-white transition-colors">
                 <ArrowLeft size={16} />
               </button>
               <h2 className="text-base font-black uppercase italic text-white">Admin Code</h2>
@@ -236,9 +224,7 @@ function PrivateRoomGate({
               onChange={e => { setCode(e.target.value); setCodeError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') handleAdminCode(); }}
             />
-            {codeError && (
-              <p className="text-[10px] text-red-400 font-black uppercase mb-3 animate-pulse">{codeError}</p>
-            )}
+            {codeError && <p className="text-[10px] text-red-400 font-black uppercase mb-3 animate-pulse">{codeError}</p>}
             <button
               onClick={handleAdminCode}
               disabled={loading}
@@ -249,17 +235,13 @@ function PrivateRoomGate({
           </motion.div>
         )}
 
-        {/* REQUEST TO JOIN */}
         {mode === 'request' && (
           <motion.div
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
             className="rounded-[2rem] border border-white/10 p-6 bg-[#0a0a0a]"
           >
             <div className="flex items-center gap-2 mb-5">
-              <button
-                onClick={() => { setMode('choose'); setReqName(''); setReqError(''); }}
-                className="p-1 text-white/40 hover:text-white transition-colors"
-              >
+              <button onClick={() => { setMode('choose'); setReqName(''); setReqError(''); }} className="p-1 text-white/40 hover:text-white transition-colors">
                 <ArrowLeft size={16} />
               </button>
               <h2 className="text-base font-black uppercase italic text-white">Request to Join</h2>
@@ -274,9 +256,7 @@ function PrivateRoomGate({
               onChange={e => { setReqName(e.target.value); setReqError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') handleJoinRequest(); }}
             />
-            {reqError && (
-              <p className="text-[10px] text-red-400 font-black uppercase mb-3 animate-pulse">{reqError}</p>
-            )}
+            {reqError && <p className="text-[10px] text-red-400 font-black uppercase mb-3 animate-pulse">{reqError}</p>}
             <button
               onClick={handleJoinRequest}
               disabled={loading}
@@ -291,13 +271,13 @@ function PrivateRoomGate({
   );
 }
 
-/* ── ADMIN PANEL ─────────────────────────────────────────── */
+/* ── ADMIN PANEL ── */
 function AdminPanel({ room, onClose }: { room: any; onClose: () => void }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-requests`);
       const data = await res.json();
@@ -307,14 +287,13 @@ function AdminPanel({ room, onClose }: { room: any; onClose: () => void }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [room._id]);
 
   useEffect(() => {
     fetchRequests();
     pollRef.current = setInterval(fetchRequests, 3000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchRequests]);
 
   const handleAction = async (requestId: string, action: 'approved' | 'denied' | 'kick') => {
     await fetch(`${BASE_URL}/api/rooms/${room._id}/join-requests/${requestId}`, {
@@ -327,15 +306,11 @@ function AdminPanel({ room, onClose }: { room: any; onClose: () => void }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-end justify-center p-0"
     >
       <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className="w-full max-w-md rounded-t-[2rem] bg-[#0a0a0a] border-t border-x border-white/10 px-5 pt-5 pb-10 max-h-[80vh] overflow-y-auto"
       >
@@ -347,18 +322,13 @@ function AdminPanel({ room, onClose }: { room: any; onClose: () => void }) {
           </div>
           <button onClick={onClose} className="text-white/40 p-1 hover:text-white"><X size={20} /></button>
         </div>
-
-        {loading && (
-          <p className="text-white/30 text-center text-xs font-black uppercase py-6">Loading...</p>
-        )}
-
+        {loading && <p className="text-white/30 text-center text-xs font-black uppercase py-6">Loading...</p>}
         {!loading && requests.length === 0 && (
           <div className="text-center py-8">
             <p className="text-white/20 text-xs font-black uppercase tracking-widest">No pending requests</p>
             <p className="text-white/10 text-[10px] mt-1">Share the room link to invite people</p>
           </div>
         )}
-
         {!loading && requests.length > 0 && (
           <div className="flex flex-col gap-3">
             <p className="text-[10px] font-black uppercase text-white/30 tracking-widest">
@@ -366,24 +336,16 @@ function AdminPanel({ room, onClose }: { room: any; onClose: () => void }) {
             </p>
             {requests.map((req: any) => (
               <div key={req._id} className="flex items-center gap-3 p-4 rounded-2xl border border-white/8 bg-white/[0.03]">
-                <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0 text-base">
-                  👤
-                </div>
+                <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0 text-base">👤</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-black text-white/80 truncate">{req.name}</p>
                   <p className="text-[9px] text-white/25 uppercase tracking-wider">{formatTime(req.createdAt)}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleAction(req._id, 'approved')}
-                    className="w-8 h-8 rounded-xl bg-green-500/15 border border-green-500/25 flex items-center justify-center active:scale-90 transition-all"
-                  >
+                  <button onClick={() => handleAction(req._id, 'approved')} className="w-8 h-8 rounded-xl bg-green-500/15 border border-green-500/25 flex items-center justify-center active:scale-90 transition-all">
                     <UserCheck size={14} className="text-green-400" />
                   </button>
-                  <button
-                    onClick={() => handleAction(req._id, 'denied')}
-                    className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center active:scale-90 transition-all"
-                  >
+                  <button onClick={() => handleAction(req._id, 'denied')} className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center active:scale-90 transition-all">
                     <UserX size={14} className="text-red-400" />
                   </button>
                 </div>
@@ -396,7 +358,7 @@ function AdminPanel({ room, onClose }: { room: any; onClose: () => void }) {
   );
 }
 
-/* ── RoomContent ─────────────────────────────────────────── */
+/* ── RoomContent ── */
 function RoomContent() {
   const { slug } = useParams();
   const router = useRouter();
@@ -407,7 +369,16 @@ function RoomContent() {
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [gateCleared, setGateCleared] = useState(false);
+
+  // ── KEY FIX: gateCleared is seeded from sessionStorage on mount.
+  // When the user navigates to a drop-detail and presses Back, Next.js
+  // remounts RoomContent. We check sessionStorage so the gate is
+  // skipped automatically — the user already passed it this session.
+  const GATE_KEY = `gateCleared-${slug}`;
+  const [gateCleared, setGateCleared] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem(GATE_KEY) === '1';
+  });
 
   const [dropName, setDropName] = useState('');
   const [dropContent, setDropContent] = useState('');
@@ -426,7 +397,7 @@ function RoomContent() {
   const knownIdsRef = useRef<Set<string>>(new Set());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Key for scroll position of THIS room page (used when going into a drop detail)
+  // Key for scroll position of THIS room page
   const ROOM_SCROLL_KEY = `scrollPos-room-${slug}`;
 
   const userId = getOrCreateUserId();
@@ -439,11 +410,11 @@ function RoomContent() {
   // ── Restore room scroll when coming back from a drop-detail page ──
   useEffect(() => {
     if (!data) return;
+    // Only attempt restore after gate is cleared
     if (data.room?.isPrivate && !gateCleared) return;
 
     const saved = sessionStorage.getItem(ROOM_SCROLL_KEY);
     if (!saved) return;
-
     const target = parseInt(saved, 10);
     sessionStorage.removeItem(ROOM_SCROLL_KEY);
 
@@ -455,7 +426,7 @@ function RoomContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, gateCleared]);
 
-  const fetchRoom = async (silent = false) => {
+  const fetchRoom = useCallback(async (silent = false) => {
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${slug}`);
       if (!res.ok) return;
@@ -475,14 +446,13 @@ function RoomContent() {
       }
       setData(incoming);
     } catch { }
-  };
+  }, [slug]);
 
   useEffect(() => {
     fetchRoom(false);
     timerRef.current = setInterval(() => fetchRoom(true), POLL_MS);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [fetchRoom]);
 
   useEffect(() => {
     const mark = () => {
@@ -495,14 +465,14 @@ function RoomContent() {
     return () => window.removeEventListener('beforeunload', mark);
   }, [data, slug]);
 
-  // ── Back button: restore the home page's tab + scroll position.
-  // 'returnTab' and 'returnScrollY' were written by markRoomSeen()
-  // (or the Link onClick handlers) on the home page when the user
-  // tapped this room's tile. We leave them in sessionStorage so the
-  // home page's mount effect can read them and restore correctly.
-  // We do NOT overwrite them here — markRoomSeen() already set them.
+  // ── Persist gate clearance so back-nav from drop detail skips it ──
+  const handleGateGranted = useCallback((adminFlag: boolean) => {
+    sessionStorage.setItem(GATE_KEY, '1');
+    setGateCleared(true);
+    if (adminFlag) setShowAdminPanel(true);
+  }, [GATE_KEY]);
+
   const handleBack = () => {
-    // Mark all current drops as seen before leaving
     if (data) {
       const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
       const nids = data.drops
@@ -510,9 +480,7 @@ function RoomContent() {
         .filter((id: string) => !cs.includes(id));
       localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...nids]));
     }
-
     if (timerRef.current) clearInterval(timerRef.current);
-
     if (window.history.length <= 2) router.push('/');
     else router.back();
   };
@@ -575,10 +543,9 @@ function RoomContent() {
     fetchRoom(true);
   };
 
+  // ── Save THIS room's scroll before navigating into a drop ──
   const navigateToDrop = (dropId: string) => {
-    // Save THIS room's scroll so we can restore it when coming back from drop detail
     sessionStorage.setItem(ROOM_SCROLL_KEY, String(window.scrollY));
-
     const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
     if (!cs.includes(dropId)) localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, dropId]));
     router.push(`/room/${slug}/${dropId}`);
@@ -602,17 +569,13 @@ function RoomContent() {
     );
   }
 
+  // ── Show gate only for private rooms that haven't been cleared this session ──
   if (data.room.isPrivate && !gateCleared) {
     return (
       <PrivateRoomGate
         room={data.room}
         userId={userId}
-        onGranted={(adminFlag) => {
-          setGateCleared(true);
-          if (adminFlag) {
-            setShowAdminPanel(true);
-          }
-        }}
+        onGranted={handleGateGranted}
       />
     );
   }
@@ -633,19 +596,10 @@ function RoomContent() {
         </button>
         <div className="flex-1 text-center">
           <div className="flex items-center justify-center gap-2">
-            {data.room.isPrivate && (
-              <Lock size={13} className="text-[#93c5fd] shrink-0" />
-            )}
-            {data.room.isAdult && !data.room.isPrivate && (
-              <span className="text-[11px]">🔞</span>
-            )}
-            {!data.room.isAdult && !data.room.isPrivate && (
-              <span className="text-[11px]">🛡️</span>
-            )}
-            <h1
-              className="text-2xl font-black uppercase italic truncate max-w-[160px]"
-              style={{ color: data.room.color }}
-            >
+            {data.room.isPrivate && <Lock size={13} className="text-[#93c5fd] shrink-0" />}
+            {data.room.isAdult && !data.room.isPrivate && <span className="text-[11px]">🔞</span>}
+            {!data.room.isAdult && !data.room.isPrivate && <span className="text-[11px]">🛡️</span>}
+            <h1 className="text-2xl font-black uppercase italic truncate max-w-[160px]" style={{ color: data.room.color }}>
               {data.room.title}
             </h1>
             {data.room.isAdult && (
@@ -654,13 +608,7 @@ function RoomContent() {
           </div>
           <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] font-bold text-white/25 tracking-widest uppercase">
             <span>blackbox-omega-peach.vercel.app/room/{slug}</span>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.host}/room/${slug}`);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
-            >
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.host}/room/${slug}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
               {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
             </button>
           </div>
@@ -703,11 +651,7 @@ function RoomContent() {
                         {userVoted && (
                           <div
                             className="absolute inset-y-0 left-0 rounded-xl"
-                            style={{
-                              width: `${pct}%`,
-                              background: voted ? 'rgba(167,139,250,0.3)' : 'rgba(255,255,255,0.06)',
-                              transition: 'width 0.7s ease',
-                            }}
+                            style={{ width: `${pct}%`, background: voted ? 'rgba(167,139,250,0.3)' : 'rgba(255,255,255,0.06)', transition: 'width 0.7s ease' }}
                           />
                         )}
                         <div className="relative px-3 py-2.5 flex items-center justify-between gap-2">
@@ -834,7 +778,6 @@ function RoomContent() {
         </button>
       </div>
 
-      {/* FAB BACKDROP */}
       <AnimatePresence>
         {showFabMenu && (
           <motion.div
@@ -881,16 +824,9 @@ function RoomContent() {
                 value={dropContent}
                 onChange={e => { setDropContent(e.target.value); setDropError(null); setDropBadWord(null); }}
               />
-              {dropError && (
-                <p className="text-[10px] font-black uppercase mb-2 animate-pulse">
-                  <ErrorMsg text={dropError} word={dropBadWord} />
-                </p>
-              )}
+              {dropError && <p className="text-[10px] font-black uppercase mb-2 animate-pulse"><ErrorMsg text={dropError} word={dropBadWord} /></p>}
               <p className="text-[10px] text-white/25 text-right font-bold mb-6">{dropContent.length}/400</p>
-              <button
-                onClick={handleDrop}
-                className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all"
-              >
+              <button onClick={handleDrop} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all">
                 Drop It
               </button>
             </motion.div>
@@ -967,11 +903,7 @@ function RoomContent() {
                   <p className="text-[9px] text-white/30">Allow selecting more than one option</p>
                 </div>
               </div>
-              {pollError && (
-                <p className="text-[10px] font-black uppercase mb-4 animate-pulse">
-                  <ErrorMsg text={pollError} word={pollBadWord} />
-                </p>
-              )}
+              {pollError && <p className="text-[10px] font-black uppercase mb-4 animate-pulse"><ErrorMsg text={pollError} word={pollBadWord} /></p>}
               <button
                 onClick={handleCreatePoll}
                 className="w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] active:scale-95 transition-all text-black"
@@ -984,11 +916,8 @@ function RoomContent() {
         )}
       </AnimatePresence>
 
-      {/* ADMIN PANEL */}
       <AnimatePresence>
-        {showAdminPanel && (
-          <AdminPanel room={data.room} onClose={() => setShowAdminPanel(false)} />
-        )}
+        {showAdminPanel && <AdminPanel room={data.room} onClose={() => setShowAdminPanel(false)} />}
       </AnimatePresence>
     </main>
   );
