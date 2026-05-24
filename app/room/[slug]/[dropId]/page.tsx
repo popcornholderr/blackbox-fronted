@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Heart, ThumbsDown, ArrowLeft, MessageSquarePlus, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import AppGuard from '@/components/AppGuard';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-const POLL_INTERVAL = 3000;
+const POLL_INTERVAL = 4000;
 
 function HighlightedError({ text, abusiveWord }: { text: string; abusiveWord?: string }) {
   if (!abusiveWord || !text) return <span>{text}</span>;
@@ -20,6 +20,22 @@ function HighlightedError({ text, abusiveWord }: { text: string; abusiveWord?: s
       {text.slice(idx + abusiveWord.length)}
     </span>
   );
+}
+
+function formatTime(dateString: string) {
+  const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+  if (diff < 60) return "Just now";
+  if (diff < 300) return "5 mins ago";
+  if (diff < 600) return "10 mins ago";
+  if (diff < 1800) return "30 mins ago";
+  if (diff < 3600) return "1 hour ago";
+  if (diff < 7200) return "2 hours ago";
+  if (diff < 18000) return "5 hours ago";
+  if (diff < 36000) return "10 hours ago";
+  if (diff < 86400) return "1 day ago";
+  if (diff < 172800) return "2 days ago";
+  if (diff < 604800) return "1 week ago";
+  return new Date(dateString).toLocaleDateString();
 }
 
 export default function DropDetailPage() {
@@ -39,7 +55,6 @@ export default function DropDetailPage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const repliesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Stable userId per device
   const userId = typeof window !== 'undefined'
     ? (localStorage.getItem('userId') || (() => {
         const id = 'user-' + Math.random().toString(36).slice(2);
@@ -48,23 +63,7 @@ export default function DropDetailPage() {
       })())
     : 'anon';
 
-  const formatTime = (dateString: string) => {
-    const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
-    if (diff < 60) return "Just now";
-    if (diff < 300) return "5 mins ago";
-    if (diff < 600) return "10 mins ago";
-    if (diff < 1800) return "30 mins ago";
-    if (diff < 3600) return "1 hour ago";
-    if (diff < 7200) return "2 hours ago";
-    if (diff < 18000) return "5 hours ago";
-    if (diff < 36000) return "10 hours ago";
-    if (diff < 86400) return "1 day ago";
-    if (diff < 172800) return "2 days ago";
-    if (diff < 604800) return "1 week ago";
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const fetchData = async (silent = false) => {
+  const fetchData = useCallback(async (silent = false) => {
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${slug}`);
       const data = await res.json();
@@ -89,13 +88,13 @@ export default function DropDetailPage() {
       setRoom(data.room);
       setDrop(foundDrop);
     } catch { }
-  };
+  }, [slug, dropId]);
 
   useEffect(() => {
     fetchData(false);
     pollRef.current = setInterval(() => fetchData(true), POLL_INTERVAL);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [slug, dropId]);
+  }, [fetchData]);
 
   const handleVote = async (type: 'likes' | 'dislikes') => {
     try {
@@ -134,6 +133,23 @@ export default function DropDetailPage() {
     setTimeout(() => repliesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 200);
   };
 
+  // ── Back: always go to the room page directly, preserving scroll.
+  // This skips the private-room gate because the room page tracks
+  // gateCleared in memory — if the user came FROM the room they already
+  // passed the gate. We push to the room URL so the room page's own
+  // scroll-restore logic (ROOM_SCROLL_KEY) fires correctly.
+  const handleBack = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    // Always navigate back to the room — never triggers the gate again
+    // because RoomContent stores gateCleared in component state (not URL).
+    // Using router.back() is safest: it restores the room page from cache.
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(`/room/${slug}`);
+    }
+  };
+
   if (!room || !drop) return (
     <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="text-xl font-black italic animate-pulse uppercase tracking-tighter text-white/60">Loading Drop...</div>
@@ -148,10 +164,9 @@ export default function DropDetailPage() {
     <AppGuard>
       <main className="min-h-screen pb-32 relative" style={{ backgroundColor: `${room.color}05` }}>
 
-        {/* HEADER */}
         <header className="px-6 py-5 bg-black/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 flex items-center gap-4">
           <button
-            onClick={() => { if (pollRef.current) clearInterval(pollRef.current); router.back(); }}
+            onClick={handleBack}
             className="p-2 border border-white/20 rounded-xl bg-black flex-shrink-0"
           >
             <ArrowLeft size={18} />
@@ -162,7 +177,6 @@ export default function DropDetailPage() {
           </div>
         </header>
 
-        {/* MAIN DROP */}
         <div className="px-4 pt-6 pb-4">
           <div className="w-full rounded-[2rem] p-6 border border-white/10 bg-[#0a0a0a] shadow-[0_8px_40px_rgba(0,0,0,0.8)]"
             style={{ backgroundColor: `${room.color}15`, borderLeft: `4px solid ${room.color}60` }}>
@@ -191,7 +205,6 @@ export default function DropDetailPage() {
           </div>
         </div>
 
-        {/* SUBDROPS */}
         <div className="px-4 mt-2">
           {replies.length > 0 && (
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 pl-1">Subdrops</p>
@@ -223,7 +236,6 @@ export default function DropDetailPage() {
           )}
         </div>
 
-        {/* REPLY FAB */}
         <button
           onClick={() => setShowReplyModal(true)}
           className="fixed bottom-10 left-1/2 -translate-x-1/2 h-14 px-8 bg-black rounded-full flex items-center justify-center gap-2 shadow-2xl z-50 transition-transform active:scale-90 hover:scale-105 border-2 border-white/20 font-black uppercase tracking-[0.15em] text-sm"
@@ -233,7 +245,6 @@ export default function DropDetailPage() {
           <span>Reply</span>
         </button>
 
-        {/* REPLY MODAL */}
         {showReplyModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
             <div className="w-full max-w-md rounded-[2.5rem] p-8 border border-white/10 shadow-2xl animate-in slide-in-from-bottom-10 duration-300 bg-[#0a0a0a]">
