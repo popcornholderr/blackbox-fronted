@@ -22,6 +22,34 @@ function formatTime(d: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+/**
+ * Generates a visually rich, unique hex color every call.
+ * Avoids near-black / near-white so tiles always look good.
+ * Uses golden-ratio hue steps + randomised saturation/lightness
+ * so consecutive colours never clash or repeat.
+ */
+function generateUniqueColor(): string {
+  // Golden-ratio hue increment — ensures maximum perceived spread
+  const goldenAngle = 137.508;
+  const seed = (Date.now() * Math.random()) % 360;
+  const h = (seed * goldenAngle) % 360;
+  // Saturation: 55–95 %  (vivid but not neon-screaming)
+  const s = 55 + Math.random() * 40;
+  // Lightness: 35–62 %  (dark enough for white text, light enough to pop)
+  const l = 35 + Math.random() * 27;
+
+  // HSL → Hex
+  const sl = s / 100;
+  const ll = l / 100;
+  const a = sl * Math.min(ll, 1 - ll);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = ll - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
 type RoomFilter = 'public' | 'private' | 'safe' | 'adult';
 
 /* ── PWA INSTALL BUTTON ── */
@@ -284,12 +312,14 @@ function PosterCreateRoom({ onCreateRoom }: { onCreateRoom: () => void }) {
               </span>
             </div>
           </div>
-          <div>
-            <p className="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1.5">Theme Color</p>
-            {step >= 2
-              ? <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.4 }} className="origin-left h-10 rounded-xl" style={{ background: '#22c55e' }} />
-              : <div className="h-10 rounded-xl bg-white/5" />}
-          </div>
+          {step >= 2 && (
+            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+              <p className="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1.5">Theme</p>
+              <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.4 }} className="origin-left h-10 rounded-xl flex items-center px-3 gap-2" style={{ background: '#22c55e' }}>
+                <span className="text-[9px] font-black text-white/70 uppercase tracking-widest">Auto-generated ✦</span>
+              </motion.div>
+            </motion.div>
+          )}
           {step >= 3 && (
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
               <p className="text-[9px] font-black uppercase text-red-500 tracking-widest mb-1.5">Do not forget to copy the link</p>
@@ -310,7 +340,7 @@ function PosterCreateRoom({ onCreateRoom }: { onCreateRoom: () => void }) {
         </div>
       </div>
       <p className="text-[10px] text-white/35 mt-3 leading-relaxed">
-        Go to <span className="text-[#fac9f6] font-black">Saved</span> tab → tap <span className="text-[#fac9f6] font-black">+</span> → name, color, copy link.
+        Go to <span className="text-[#fac9f6] font-black">Saved</span> tab → tap <span className="text-[#fac9f6] font-black">+</span> → name, copy link.
       </p>
       <button onClick={onCreateRoom} className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#fac9f6]">
         <motion.span animate={{ x: [0, 3, 0] }} transition={{ duration: 1.1, repeat: Infinity }}>→</motion.span> Create your first room
@@ -504,7 +534,6 @@ const slideVariants = {
 export default function HomePage() {
   const router = useRouter();
 
-  // showIntro controls first-visit overlay only
   const [showIntro, setShowIntro] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -533,9 +562,12 @@ export default function HomePage() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  // Auto-generate a fresh color each time the modal opens
   const [newRoom, setNewRoom] = useState({
-    title: '', color: '#22c55e', isAdult: false, isPrivate: false, adminCode: '',
+    title: '', color: generateUniqueColor(), isAdult: false, isPrivate: false, adminCode: '',
   });
+
   const [fetchError, setFetchError] = useState(false);
   const [bestDrop, setBestDrop] = useState<any>(null);
   const [bestPoll, setBestPoll] = useState<any>(null);
@@ -655,6 +687,12 @@ export default function HomePage() {
     return () => { if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current); };
   }, [fetchRooms, fetchBestContent]);
 
+  // Regenerate colour every time modal opens
+  const openAddModal = useCallback(() => {
+    setNewRoom({ title: '', color: generateUniqueColor(), isAdult: false, isPrivate: false, adminCode: '' });
+    setShowAddModal(true);
+  }, []);
+
   const handleCreateRoom = async () => {
     if (!newRoom.title.trim()) return alert('Title is required!');
     if (newRoom.isPrivate && !newRoom.adminCode.trim()) return alert('Admin code is required for private rooms!');
@@ -671,7 +709,6 @@ export default function HomePage() {
       setSavedIds(upd);
       localStorage.setItem('savedRooms', JSON.stringify(upd));
     }
-    setNewRoom({ title: '', color: '#22c55e', isAdult: false, isPrivate: false, adminCode: '' });
     setShowAddModal(false);
     fetchRooms(); paginate(2);
   };
@@ -729,7 +766,6 @@ export default function HomePage() {
 
   return (
     <>
-      {/* IntroScreen only shown on first-ever visit */}
       {showIntro && <IntroScreen onFinish={() => setShowIntro(false)} />}
 
       <main
@@ -820,7 +856,6 @@ export default function HomePage() {
                   </div>
 
                   <div className="px-4 mt-4">
-                    {/* ── FIX: onReadMore navigates to the intro page ── */}
                     <AnimatedBlurb onReadMore={() => router.push('/intro')} />
                   </div>
 
@@ -1046,7 +1081,7 @@ export default function HomePage() {
               key="fab"
               initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-              onClick={() => setShowAddModal(true)}
+              onClick={openAddModal}
               className="fixed bottom-7 right-5 w-14 h-14 bg-[#fac9f6] text-black rounded-full flex items-center justify-center shadow-2xl z-[60] active:scale-90 transition-transform"
             >
               <Plus size={28} />
@@ -1054,7 +1089,7 @@ export default function HomePage() {
           )}
         </AnimatePresence>
 
-        {/* CREATE ROOM MODAL */}
+        {/* CREATE ROOM MODAL — no color picker */}
         <AnimatePresence>
           {showAddModal && (
             <motion.div
@@ -1079,13 +1114,21 @@ export default function HomePage() {
                   onChange={e => setNewRoom({ ...newRoom, title: e.target.value })}
                 />
 
+                {/* Auto-color preview — no picker */}
                 <label className="text-[10px] font-black uppercase text-white/40 mb-1.5 block">Theme Color</label>
-                <input
-                  type="color"
-                  className="w-full h-11 rounded-xl mb-5 cursor-pointer"
-                  value={newRoom.color}
-                  onChange={e => setNewRoom({ ...newRoom, color: e.target.value })}
-                />
+                <div
+                  className="w-full h-11 rounded-2xl mb-1 flex items-center px-4 gap-3"
+                  style={{ background: newRoom.color }}
+                >
+                  <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.7)' }}>Auto-generated ✦</span>
+                  <span className="ml-auto text-[9px] font-mono opacity-50" style={{ color: 'rgba(255,255,255,0.6)' }}>{newRoom.color}</span>
+                </div>
+                <button
+                  onClick={() => setNewRoom(r => ({ ...r, color: generateUniqueColor() }))}
+                  className="mb-5 text-[9px] font-black uppercase tracking-widest text-white/30 flex items-center gap-1"
+                >
+                  <span>↻</span> Regenerate colour
+                </button>
 
                 <label className="text-[10px] font-black uppercase text-white/40 mb-2 block">Room Type</label>
                 <div className="grid grid-cols-2 gap-2 mb-5">
