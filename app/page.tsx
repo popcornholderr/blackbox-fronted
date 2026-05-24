@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, forwardRef, memo } from 'react';
 import {
   Search, Flame, Plus, X, Copy, Heart, ThumbsDown,
   BarChart2, Users, ChevronRight, Check,
-  Lock, ShieldAlert,
+  Lock, ShieldAlert, Download, Smartphone,
 } from 'lucide-react';
 import RoomTile from '@/components/RoomTile';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
@@ -21,11 +21,123 @@ function formatTime(d: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-/* ── Filter types — now a SET for multi-select ── */
 type RoomFilter = 'public' | 'private' | 'safe' | 'adult';
 
+/* ── PWA INSTALL BUTTON ── */
+function InstallAppBanner() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [show, setShow] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
+    if ((window.navigator as any).standalone) return;
+
+    const dismissed = localStorage.getItem('installBannerDismissed');
+    if (dismissed) return;
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShow(true);
+      setTimeout(() => setShowTooltip(true), 1500);
+      setTimeout(() => setShowTooltip(false), 5000);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', () => { setInstalled(true); setShow(false); });
+
+    const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    const isSafari = /safari/.test(navigator.userAgent.toLowerCase()) && !/chrome/.test(navigator.userAgent.toLowerCase());
+    if (isIOS && isSafari) {
+      setShow(true);
+      setTimeout(() => setShowTooltip(true), 1500);
+      setTimeout(() => setShowTooltip(false), 6000);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setInstalled(true);
+      setDeferredPrompt(null);
+      setShow(false);
+    }
+  };
+
+  const handleDismiss = () => {
+    setShow(false);
+    localStorage.setItem('installBannerDismissed', '1');
+  };
+
+  if (!show || installed) return null;
+
+  const isIOS = typeof window !== 'undefined' && /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+
+  return (
+    <div className="px-4 mt-4 relative">
+      <AnimatePresence>
+        {showTooltip && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.95 }}
+            className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-black bg-[#fac9f6] shadow-lg pointer-events-none"
+          >
+            ✨ Tap for instant access — no browser needed!
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#fac9f6] rotate-45" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        className="relative rounded-2xl border border-[#fac9f6]/25 overflow-hidden flex items-center gap-3 px-4 py-3"
+        style={{ background: 'linear-gradient(135deg, rgba(250,201,246,0.08) 0%, rgba(0,0,0,0.6) 100%)' }}
+      >
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          animate={{ x: ['-100%', '200%'] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
+          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(250,201,246,0.08) 50%, transparent 100%)' }}
+        />
+        <div className="w-9 h-9 rounded-xl bg-[#fac9f6]/10 border border-[#fac9f6]/20 flex items-center justify-center flex-shrink-0">
+          <Smartphone size={18} className="text-[#fac9f6]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-black uppercase text-white/80 tracking-wide">Install Black Box</p>
+          {isIOS
+            ? <p className="text-[9px] text-white/35 font-medium">Tap Share → "Add to Home Screen"</p>
+            : <p className="text-[9px] text-white/35 font-medium">Get the app — faster & offline ready</p>
+          }
+        </div>
+        {!isIOS && (
+          <button
+            onClick={handleInstall}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#fac9f6] text-black text-[9px] font-black uppercase tracking-wider flex-shrink-0 active:scale-95 transition-transform"
+          >
+            <Download size={11} />
+            Install
+          </button>
+        )}
+        <button
+          onClick={handleDismiss}
+          className="p-1 text-white/25 hover:text-white/50 flex-shrink-0"
+        >
+          <X size={14} />
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── ANIMATED BLURB ── */
-function AnimatedBlurb({ onReadMore }: { onReadMore: () => void }) {
+const AnimatedBlurb = memo(function AnimatedBlurb({ onReadMore }: { onReadMore: () => void }) {
   const words = ['Anonymous.', 'Unfiltered.', 'For students.'];
   const [wi, setWi] = useState(0);
   useEffect(() => {
@@ -82,9 +194,8 @@ function AnimatedBlurb({ onReadMore }: { onReadMore: () => void }) {
       </div>
     </div>
   );
-}
+});
 
-/* ── INTRO primitives ── */
 const Cursor = () => (
   <motion.span
     className="inline-block w-[1.5px] h-[0.85em] bg-white/60 ml-[1px] align-middle"
@@ -268,325 +379,7 @@ function PosterNewDrop() {
   );
 }
 
-function PosterModeration() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
-  const [step, setStep] = useState(0);
-  const [typed, setTyped] = useState('');
-  const bad = 'fuck';
-
-  useEffect(() => {
-    if (!inView) { setStep(0); setTyped(''); return; }
-    const ts = [
-      setTimeout(() => setStep(1), 400),
-      setTimeout(() => setStep(2), 900),
-      setTimeout(() => setStep(3), 2000),
-      setTimeout(() => setStep(4), 2700),
-    ];
-    return () => ts.forEach(clearTimeout);
-  }, [inView]);
-
-  useEffect(() => {
-    if (step < 2) { setTyped(''); return; }
-    let i = 0;
-    const iv = setInterval(() => { i++; setTyped(bad.slice(0, i)); if (i >= bad.length) clearInterval(iv); }, 90);
-    return () => clearInterval(iv);
-  }, [step]);
-
-  const blocked = step >= 3;
-
-  return (
-    <IntroCard ref={ref as any}>
-      <motion.div
-        className="absolute inset-x-0 h-px pointer-events-none"
-        style={{ background: 'linear-gradient(90deg, transparent 0%, #ef4444 50%, transparent 100%)', opacity: 0.3 }}
-        animate={{ top: ['8%', '92%', '8%'] }}
-        transition={{ duration: 3.5, repeat: Infinity, ease: 'linear' }}
-      />
-      <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#f87171]">Always On</span>
-          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— AI Shield</span>
-          <div className="ml-auto flex items-center gap-1.5">
-            <LiveDot color="#ef4444" />
-            <span className="text-[8px] font-black uppercase text-white/25">Active</span>
-          </div>
-        </div>
-        <div className="rounded-[1.4rem] border-2 border-white/10 overflow-hidden" style={{ background: '#111' }}>
-          <div className="flex items-center justify-between px-5 pt-5 pb-3">
-            <span className="text-base font-black italic uppercase text-white">New Drop</span>
-            <div className="w-6 h-6 flex items-center justify-center rounded-full border border-white/10"><X size={12} className="text-white/50" /></div>
-          </div>
-          <div className="px-5 pb-5 flex flex-col gap-3">
-            <div className="rounded-2xl border border-white/10 px-4 py-3 bg-white/[0.04]">
-              <span className="text-sm text-white/40">Display Name...</span>
-            </div>
-            <motion.div
-              animate={{ borderColor: blocked ? 'rgb(239,68,68)' : 'rgba(255,255,255,0.1)' }}
-              transition={{ duration: 0.3 }}
-              className="rounded-2xl border px-4 py-3 min-h-[72px] flex flex-col justify-between bg-white/[0.04]"
-            >
-              <span className="text-sm leading-snug break-words" style={{ color: blocked ? '#f87171' : 'rgba(255,255,255,0.8)' }}>
-                {step >= 2 ? typed : <span className="text-white/20">What&apos;s the tea?</span>}
-                {step >= 2 && step < 3 && typed.length < bad.length && <Cursor />}
-              </span>
-              {step >= 2 && <span className="text-[9px] text-white/20 text-right mt-1">{typed.length}/400</span>}
-            </motion.div>
-            <AnimatePresence>
-              {blocked && (
-                <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-[9px] font-black uppercase text-red-500 tracking-widest -mt-1">
-                  Abusive language is not allowed.
-                </motion.p>
-              )}
-            </AnimatePresence>
-            <div className="w-full py-3.5 rounded-2xl text-center text-xs font-black uppercase tracking-widest bg-white text-black">Drop It</div>
-          </div>
-        </div>
-        {step >= 4 && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 gap-2 mt-3">
-            <div className="rounded-xl p-3 border border-red-500/20 bg-red-500/[0.06]">
-              <p className="text-[8px] font-black uppercase text-red-400/60 mb-2">Blocked ✗</p>
-              {['Slurs', 'Hate speech', 'Threats', '400+ patterns'].map((w, i) => (
-                <motion.div key={w} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.08 }} className="mb-1">
-                  <span className="text-[8px] text-red-400/80 line-through">{w}</span>
-                </motion.div>
-              ))}
-            </div>
-            <div className="rounded-xl p-3 border border-green-500/20 bg-green-500/[0.05]">
-              <p className="text-[8px] font-black uppercase text-green-400/60 mb-2">Allowed ✓</p>
-              {['Honest rants', 'Opinions', 'Criticism', 'Emojis 🔥'].map((w, i) => (
-                <motion.div key={w} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 + i * 0.08 }} className="mb-1">
-                  <span className="text-[8px] text-green-400/80">{w}</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-        <p className="text-[10px] text-white/35 mt-3 leading-relaxed">
-          Every drop scanned against <span className="text-[#f87171] font-black">400+ abuse patterns</span>. Toxic content rejected before reaching the feed.
-        </p>
-      </div>
-    </IntroCard>
-  );
-}
-
-function PosterPolls() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
-  const [step, setStep] = useState(0);
-  const options = ['Library rooftop 🌆', 'Canteen corner 🍕', 'Basketball court 🏀', 'Park outside 🌿'];
-  const votes = [12, 8, 5, 3];
-  const total = 28;
-
-  useEffect(() => {
-    if (!inView) { setStep(0); return; }
-    const ts = [
-      setTimeout(() => setStep(1), 500),
-      setTimeout(() => setStep(2), 1200),
-      setTimeout(() => setStep(3), 2000),
-      setTimeout(() => setStep(4), 2800),
-    ];
-    return () => ts.forEach(clearTimeout);
-  }, [inView]);
-
-  return (
-    <IntroCard ref={ref as any}>
-      <div className="flex items-center gap-2 mb-4">
-        <BarChart2 size={12} className="text-[#a78bfa]" />
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#a78bfa]">Step 3</span>
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— Create a Poll</span>
-      </div>
-      <div className="rounded-[1.4rem] border border-white/10 p-4" style={{ background: '#111' }}>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><BarChart2 size={12} className="text-[#a78bfa]" /></div>
-          <span className="text-[10px] font-black uppercase text-white/60">Anonymous</span>
-          <span className="ml-auto text-[8px] text-white/25">Just now</span>
-        </div>
-        {step >= 1 && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm font-bold text-white/90 mb-3">Best place to hang after school?</motion.p>}
-        <div className="flex flex-col gap-2">
-          {options.map((opt, i) => {
-            const pct = step >= 4 ? Math.round((votes[i] / total) * 100) : 0;
-            const sel = i === 0 && step >= 3;
-            return (
-              <div key={i} className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
-                {step >= 4 && (
-                  <motion.div
-                    className="absolute inset-y-0 left-0 rounded-xl"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.8, delay: i * 0.1 }}
-                    style={{ background: sel ? 'rgba(167,139,250,0.25)' : 'rgba(255,255,255,0.06)' }}
-                  />
-                )}
-                <div className="relative px-3 py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {step >= 3 && <div className={`w-3.5 h-3.5 rounded-full border-2 ${sel ? 'border-[#a78bfa] bg-[#a78bfa]' : 'border-white/20'}`} />}
-                    <span className="text-[11px] text-white/80">{step >= 2 ? opt : <span className="text-white/20">Option {i + 1}</span>}</span>
-                  </div>
-                  {step >= 4 && <span className="text-[9px] font-black text-white/40">{pct}%</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {step >= 4 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 mt-3">
-            <Users size={10} className="text-white/30" />
-            <span className="text-[9px] text-white/30 font-bold">{total} votes</span>
-          </motion.div>
-        )}
-      </div>
-      <p className="text-[10px] text-white/35 mt-3 leading-relaxed">
-        Tap <span className="text-[#a78bfa] font-black">+</span> → choose <span className="text-[#a78bfa] font-black">Poll</span> → add question + up to 4 options. Results show live.
-      </p>
-    </IntroCard>
-  );
-}
-
-function PosterAdultRoom() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
-  const [step, setStep] = useState(0);
-
-  useEffect(() => {
-    if (!inView) { setStep(0); return; }
-    const ts = [
-      setTimeout(() => setStep(1), 400),
-      setTimeout(() => setStep(2), 1200),
-      setTimeout(() => setStep(3), 2000),
-    ];
-    return () => ts.forEach(clearTimeout);
-  }, [inView]);
-
-  return (
-    <IntroCard ref={ref as any}>
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#f87171]">New</span>
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— 18+ Rooms</span>
-        <div className="ml-auto px-2 py-0.5 rounded-lg text-[9px] font-black bg-red-500/80 text-white">18+</div>
-      </div>
-      <div className="rounded-[1.4rem] border border-white/10 p-4 mb-3" style={{ background: '#111' }}>
-        <p className="text-[10px] font-black uppercase text-white/50 tracking-widest mb-3">Room Type</p>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: '🛡️ Safe Room', sub: 'Words filtered', color: '#4ade80', active: step < 2 },
-            { label: '🔞 18+ Room', sub: 'Unfiltered chat', color: '#f87171', active: step >= 2 },
-          ].map((opt, i) => (
-            <motion.div
-              key={i}
-              animate={{ borderColor: opt.active ? opt.color + '80' : 'rgba(255,255,255,0.08)' }}
-              className="rounded-xl border p-3 flex flex-col gap-1"
-              style={{ background: opt.active ? opt.color + '10' : 'rgba(255,255,255,0.03)' }}
-            >
-              <span className="text-sm">{opt.label}</span>
-              <span className="text-[9px] text-white/40 font-bold">{opt.sub}</span>
-              {opt.active && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-3 h-3 rounded-full mt-1" style={{ background: opt.color }} />}
-            </motion.div>
-          ))}
-        </div>
-        {step >= 2 && (
-          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-3 p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5">
-            <p className="text-[9px] font-black text-yellow-400/80 uppercase tracking-widest mb-1">⚠️ 18+ rooms</p>
-            <p className="text-[9px] text-white/35 leading-relaxed">Adult language allowed. CSAM and terrorism content always blocked regardless of room type.</p>
-          </motion.div>
-        )}
-      </div>
-      <p className="text-[10px] text-white/35 leading-relaxed">
-        <span className="text-[#fac9f6] font-black">18+ rooms</span> show a red badge on the room tile. Safe rooms filter 400+ abusive patterns.
-      </p>
-    </IntroCard>
-  );
-}
-
-function PosterPrivateRoom() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: false, margin: '0px 0px -40px 0px' });
-  const [step, setStep] = useState(0);
-
-  useEffect(() => {
-    if (!inView) { setStep(0); return; }
-    const ts = [
-      setTimeout(() => setStep(1), 500),
-      setTimeout(() => setStep(2), 1400),
-      setTimeout(() => setStep(3), 2200),
-      setTimeout(() => setStep(4), 3000),
-    ];
-    return () => ts.forEach(clearTimeout);
-  }, [inView]);
-
-  return (
-    <IntroCard ref={ref as any}>
-      <div className="flex items-center gap-2 mb-4">
-        <Lock size={12} className="text-[#60a5fa]" />
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#60a5fa]">New</span>
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— Private Rooms</span>
-      </div>
-      <div className="rounded-[1.4rem] border border-white/10 overflow-hidden mb-3" style={{ background: '#111' }}>
-        <div className="px-4 py-4 border-b border-white/10 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-[#60a5fa]/10 border border-[#60a5fa]/20 flex items-center justify-center">
-            <Lock size={14} className="text-[#60a5fa]" />
-          </div>
-          <div>
-            <p className="text-[11px] font-black uppercase text-white/80">Secret Room</p>
-            <p className="text-[9px] text-white/30">Private · Invite only</p>
-          </div>
-        </div>
-        <div className="p-4 flex flex-col gap-2">
-          {step >= 1 && (
-            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-[#60a5fa]/20 bg-[#60a5fa]/5 p-3">
-              <p className="text-[9px] font-black uppercase text-[#60a5fa]/70 mb-1">Enter Admin Code</p>
-              <div className="flex gap-1.5">
-                {['•', '•', '•', '•'].map((c, i) => (
-                  <div key={i} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/60 text-sm font-black">{step >= 2 ? '•' : ''}</div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-          {step >= 2 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-[9px] text-white/30 font-bold uppercase tracking-widest">— or —</motion.div>
-          )}
-          {step >= 2 && (
-            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-              <p className="text-[9px] font-black uppercase text-white/40 mb-1">Request to Join</p>
-              <div className="rounded-lg bg-black px-3 py-2 text-[10px] text-white/50 font-bold">
-                {step >= 3 ? 'Alex' : <span className="text-white/20">Your name...</span>}
-                {step === 3 && <Cursor />}
-              </div>
-            </motion.div>
-          )}
-          {step >= 4 && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full py-2.5 rounded-xl text-center text-[10px] font-black uppercase tracking-wider bg-white text-black">
-              Request Sent ✓
-            </motion.div>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        {[
-          { icon: '👑', label: 'Admin', desc: 'Enter code → see & approve/deny requests' },
-          { icon: '👤', label: 'Member', desc: 'Request with name → wait for approval' },
-        ].map((item, i) => (
-          <div key={i} className="rounded-xl p-3 border border-white/8 bg-white/[0.03]">
-            <span className="text-base">{item.icon}</span>
-            <p className="text-[10px] font-black text-white/70 mt-1">{item.label}</p>
-            <p className="text-[8px] text-white/30 leading-relaxed mt-0.5">{item.desc}</p>
-          </div>
-        ))}
-      </div>
-      <p className="text-[10px] text-white/35 leading-relaxed">
-        Private rooms show a <span className="text-[#60a5fa] font-black">🔒 lock badge</span> on the tile. The admin code is set at room creation — share it only with trusted people.
-      </p>
-    </IntroCard>
-  );
-}
-
-const slideVariants = {
-  enter: (direction: number) => ({ x: direction > 0 ? '100%' : '-100%', opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (direction: number) => ({ x: direction < 0 ? '100%' : '-100%', opacity: 0 }),
-};
-
-/* ── Filter chip — multi-select version ── */
+/* ── Filter chip ── */
 function FilterChip({
   active, onClick, icon, label, activeColor, activeBg, activeBorder,
 }: {
@@ -659,7 +452,7 @@ const FILTER_CHIPS = [
   },
 ];
 
-function FilterChipRow({ activeFilters, onToggle }: { activeFilters: Set<RoomFilter>; onToggle: (f: RoomFilter) => void }) {
+const FilterChipRow = memo(function FilterChipRow({ activeFilters, onToggle }: { activeFilters: Set<RoomFilter>; onToggle: (f: RoomFilter) => void }) {
   return (
     <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
       {FILTER_CHIPS.map(chip => (
@@ -676,7 +469,7 @@ function FilterChipRow({ activeFilters, onToggle }: { activeFilters: Set<RoomFil
       ))}
     </div>
   );
-}
+});
 
 function applyFilters(rooms: any[], activeFilters: Set<RoomFilter>): any[] {
   if (activeFilters.size === 0) return rooms;
@@ -701,22 +494,32 @@ function filterLabel(activeFilters: Set<RoomFilter>): string {
   return parts.join(' · ') + ' Rooms';
 }
 
-/* ─────────────────────────────────────────────────────────────
-   HOME PAGE — default export required by Next.js
-   Intro shown only on first-ever visit (localStorage gate).
-   Back-navigation from a room never triggers the intro because
-   IntroScreen lives here, not in AppGuard or the room page.
-───────────────────────────────────────────────────────────── */
+const slideVariants = {
+  enter: (direction: number) => ({ x: direction > 0 ? '100%' : '-100%', opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction: number) => ({ x: direction < 0 ? '100%' : '-100%', opacity: 0 }),
+};
+
 export default function HomePage() {
   const [showIntro, setShowIntro] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // All the rest of the home state
   const [currentIndex, setCurrentIndex] = useState(1);
   const [direction, setDirection] = useState(0);
 
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [roomsLoaded, setRoomsLoaded] = useState(false);
+  const [rooms, setRooms] = useState<any[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const cached = localStorage.getItem('cachedRooms');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
+
+  const [roomsLoaded, setRoomsLoaded] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return !!localStorage.getItem('cachedRooms');
+  });
+
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [avatarIndex, setAvatarIndex] = useState(0);
   const [lastSeenMap, setLastSeenMap] = useState<any>({});
@@ -734,7 +537,10 @@ export default function HomePage() {
   const [bestPoll, setBestPoll] = useState<any>(null);
   const [copiedCreate, setCopiedCreate] = useState(false);
 
-  // Tracks whether the initial tab/scroll restore from sessionStorage has been applied
+  // ── Scroll restoration state ──
+  // We store the pending target here after reading sessionStorage,
+  // then a separate effect fires it once rooms are loaded on the right tab.
+  const pendingScrollRef = useRef<{ tab: number; y: number } | null>(null);
   const scrollRestoredRef = useRef(false);
 
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -742,19 +548,19 @@ export default function HomePage() {
   const roomsRef = useRef<HTMLDivElement>(null);
   const dragStartXRef = useRef(0);
 
-  const toggleFilter = (f: RoomFilter) => {
+  const toggleFilter = useCallback((f: RoomFilter) => {
     setActiveFilters(prev => {
       const next = new Set(prev);
       if (next.has(f)) next.delete(f);
       else next.add(f);
       return next;
     });
-  };
+  }, []);
 
-  const paginate = (newIndex: number) => {
-    setDirection(newIndex > currentIndex ? 1 : -1);
+  const paginate = useCallback((newIndex: number) => {
+    setDirection(prev => newIndex > prev ? 1 : -1);
     setCurrentIndex(newIndex);
-  };
+  }, []);
 
   useEffect(() => {
     setSearchOpen(false);
@@ -762,45 +568,8 @@ export default function HomePage() {
     setActiveFilters(new Set());
   }, [currentIndex]);
 
-  // ── Restore tab + scroll when user comes back from a room ──
-  // We read both the saved tab index and the scroll position that were
-  // written by markRoomSeen() (or handleBack() in the room page).
-  // The scroll restore is deferred until AFTER the correct tab is
-  // rendered, using a ref flag so it fires exactly once per navigation.
-  useEffect(() => {
-    if (!mounted) return;
-    if (scrollRestoredRef.current) return;
-
-    const savedTab = sessionStorage.getItem('returnTab');
-    const savedScroll = sessionStorage.getItem('returnScrollY');
-
-    if (!savedTab && !savedScroll) return;
-
-    sessionStorage.removeItem('returnTab');
-    sessionStorage.removeItem('returnScrollY');
-
-    const tabIndex = savedTab ? parseInt(savedTab, 10) : 1;
-
-    // Switch to the correct tab first (no animation direction needed for a restore)
-    setDirection(0);
-    setCurrentIndex(tabIndex);
-
-    if (savedScroll) {
-      const target = parseInt(savedScroll, 10);
-      // Wait for the slide animation + layout to settle, then restore scroll
-      const raf1 = requestAnimationFrame(() => {
-        const raf2 = requestAnimationFrame(() => {
-          window.scrollTo({ top: target, behavior: 'instant' });
-          scrollRestoredRef.current = true;
-        });
-        return raf2;
-      });
-      return () => cancelAnimationFrame(raf1);
-    }
-
-    scrollRestoredRef.current = true;
-  }, [mounted]);
-
+  // ── Step 1: On mount, read sessionStorage and store target in ref.
+  //    Set the tab immediately (no flash), but DON'T scroll yet.
   useEffect(() => {
     setMounted(true);
     const saved = JSON.parse(localStorage.getItem('savedRooms') || '[]');
@@ -809,18 +578,57 @@ export default function HomePage() {
     setSavedIds(saved);
     setAvatarIndex(av);
     setLastSeenMap(seen2);
-    const cached = localStorage.getItem('cachedRooms');
-    if (cached) {
-      try { setRooms(JSON.parse(cached)); setRoomsLoaded(true); } catch { }
-    }
 
-    // ── Intro: show only on very first visit ever ──
     const hasSeen = localStorage.getItem('hasSeenIntro');
     if (!hasSeen) {
       setShowIntro(true);
       localStorage.setItem('hasSeenIntro', '1');
     }
+
+    // Read and immediately clear the return state
+    const savedTab = sessionStorage.getItem('returnTab');
+    const savedScroll = sessionStorage.getItem('returnScrollY');
+    sessionStorage.removeItem('returnTab');
+    sessionStorage.removeItem('returnScrollY');
+
+    if (savedTab && savedScroll) {
+      const tabIndex = parseInt(savedTab, 10);
+      const scrollY = parseInt(savedScroll, 10);
+
+      // Switch to the correct tab immediately (direction 0 = no animation on restore)
+      setDirection(0);
+      setCurrentIndex(tabIndex);
+
+      // Store the pending scroll target; we'll fire it once content is ready
+      pendingScrollRef.current = { tab: tabIndex, y: scrollY };
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Step 2: Fire the scroll ONLY after:
+  //    (a) rooms are loaded (grid is rendered), AND
+  //    (b) we're on the correct tab, AND
+  //    (c) we haven't already restored (guard against re-fires)
+  useEffect(() => {
+    if (!roomsLoaded) return;
+    if (scrollRestoredRef.current) return;
+    const pending = pendingScrollRef.current;
+    if (!pending) return;
+    if (currentIndex !== pending.tab) return;
+
+    scrollRestoredRef.current = true;
+    pendingScrollRef.current = null;
+
+    // Two rAF passes: first lets React flush the grid paint,
+    // second lets the browser do layout so scrollHeight is correct.
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: pending.y, behavior: 'instant' });
+      });
+    });
+
+    return () => cancelAnimationFrame(raf1);
+  }, [roomsLoaded, currentIndex]);
 
   const fetchRooms = useCallback(async (attempt = 0): Promise<void> => {
     if (isFetchingRef.current && attempt === 0) return;
@@ -880,20 +688,14 @@ export default function HomePage() {
     fetchRooms(); paginate(2);
   };
 
-  // ── Save current tab index AND scroll position so the room page can
-  //    write them back into sessionStorage on its back-navigation.
-  //    The room page reads 'returnTab' and 'returnScrollY' and sets them
-  //    before calling router.back(), so this page's restore effect picks
-  //    them up on mount.
-  const markRoomSeen = (roomId: string) => {
-    // Persist scroll position and active tab for restore after back-navigation
+  // ── Save scroll + tab before navigating into a room ──
+  const markRoomSeen = useCallback((roomId: string) => {
     sessionStorage.setItem('returnScrollY', String(window.scrollY));
     sessionStorage.setItem('returnTab', String(currentIndex));
-
     const upd = { ...lastSeenMap, [roomId]: Date.now() };
     setLastSeenMap(upd);
     localStorage.setItem('lastSeenMap', JSON.stringify(upd));
-  };
+  }, [currentIndex, lastSeenMap]);
 
   const selectAvatar = (idx: number) => {
     setAvatarIndex(idx);
@@ -901,7 +703,7 @@ export default function HomePage() {
     setShowAvatarModal(false);
   };
 
-  const toggleSave = async (id: string) => {
+  const toggleSave = useCallback(async (id: string) => {
     const isSaved = savedIds.includes(id);
     const ns = isSaved ? savedIds.filter(i => i !== id) : [...savedIds, id];
     setSavedIds(ns);
@@ -911,16 +713,24 @@ export default function HomePage() {
       await fetch(`${BASE_URL}/api/rooms/${id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: isSaved ? 'decrement' : 'increment' }) });
       fetchRooms();
     } catch { setSavedIds(prev => isSaved ? [...prev, id] : prev.filter(i => i !== id)); }
-  };
+  }, [savedIds, fetchRooms]);
 
-  const scrollToRooms = () => roomsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const scrollToRooms = useCallback(() => roomsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
 
-  const filtered = applyFilters(
-    rooms
-      .filter(r => currentIndex === 2 ? savedIds.includes(r._id) : true)
-      .filter(r => r.title.toLowerCase().includes(searchQuery.toLowerCase())),
+  const browseFiltered = useMemo(() => applyFilters(
+    rooms.filter(r => r.title.toLowerCase().includes(searchQuery.toLowerCase())),
     activeFilters
-  ).sort((a, b) => currentIndex === 2 ? new Date(b.lastDropAt).getTime() - new Date(a.lastDropAt).getTime() : 0);
+  ), [rooms, searchQuery, activeFilters]);
+
+  const savedFiltered = useMemo(() => applyFilters(
+    rooms
+      .filter(r => savedIds.includes(r._id))
+      .filter(r => r.title.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => new Date(b.lastDropAt).getTime() - new Date(a.lastDropAt).getTime()),
+    activeFilters
+  ), [rooms, savedIds, searchQuery, activeFilters]);
+
+  const filtered = currentIndex === 2 ? savedFiltered : browseFiltered;
 
   if (!mounted) {
     return (
@@ -932,21 +742,18 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Intro overlay — only renders on first ever visit */}
       {showIntro && <IntroScreen onFinish={() => setShowIntro(false)} />}
 
       <main
         suppressHydrationWarning
         className="w-full max-w-md mx-auto min-h-screen pb-28 relative select-none overflow-x-hidden bg-black text-white"
       >
-        {/* ── HEADER ── */}
         <header className="pt-10 px-4 flex items-center justify-center">
           <h1 className="text-3xl font-black tracking-tighter text-center">
             B<span className="mirror">L</span>ACK BOX
           </h1>
         </header>
 
-        {/* ── 2-TAB CAPSULE ── */}
         <div className="flex justify-center mt-5 px-4 z-50 relative">
           <div
             className="relative flex items-center bg-[#111] border border-white/10 rounded-full p-1 w-full max-w-[240px]"
@@ -972,7 +779,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ── SLIDE PAGES ── */}
         <div
           className="relative mt-4 touch-pan-y w-full overflow-hidden"
           onPointerDown={(e) => { dragStartXRef.current = e.clientX; }}
@@ -983,7 +789,7 @@ export default function HomePage() {
             else if (diff > 0 && currentIndex > 0) paginate(currentIndex - 1);
           }}
         >
-          <AnimatePresence initial={false} custom={direction} mode="wait">
+          <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={currentIndex}
               custom={direction}
@@ -993,44 +799,7 @@ export default function HomePage() {
               className="w-full"
             >
 
-              {/* ── INTRO PAGE (index 0) ── */}
-              {currentIndex === 0 && (
-                <div className="px-4 pt-6 pb-10 overflow-y-auto">
-                  <motion.div
-                    initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-                    className="rounded-[2rem] p-6 border border-white/10 relative overflow-hidden mb-2"
-                    style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #111 100%)' }}
-                  >
-                    <div className="absolute inset-0 opacity-30" style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(250,201,246,0.15), transparent 60%)' }} />
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-3">
-                        <LiveDot color="#fac9f6" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Anonymous Platform</span>
-                      </div>
-                      <h2 className="text-2xl font-black uppercase italic tracking-tight text-white mb-2 leading-tight">
-                        The Anonymous<br />Gossip Platform
-                      </h2>
-                      <p className="text-[11px] text-white/50 leading-relaxed">
-                        Built for college &amp; school students to chat, rant, and gossip freely — no accounts, no identity, no judgment.
-                      </p>
-                    </div>
-                  </motion.div>
-                  <SectionLabel text="How It Works" />
-                  <div className="flex flex-col gap-4">
-                    <PosterCreateRoom onCreateRoom={() => { setShowAddModal(true); paginate(2); }} />
-                    <PosterNewDrop />
-                    <PosterModeration />
-                    <PosterPolls />
-                  </div>
-                  <SectionLabel text="New Features" />
-                  <div className="flex flex-col gap-4 pb-8">
-                    <PosterAdultRoom />
-                    <PosterPrivateRoom />
-                  </div>
-                </div>
-              )}
-
-              {/* ── BROWSE PAGE (index 1) ── */}
+              {/* ── BROWSE PAGE ── */}
               {currentIndex === 1 && (
                 <div className="mt-5">
                   <div className="px-4 flex flex-col gap-2">
@@ -1065,6 +834,8 @@ export default function HomePage() {
                   <div className="px-4 mt-4">
                     <AnimatedBlurb onReadMore={() => paginate(0)} />
                   </div>
+
+                  <InstallAppBanner />
 
                   {bestDrop?.drop && (
                     <div className="px-4 mt-5">
@@ -1206,7 +977,7 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* ── SAVED PAGE (index 2) ── */}
+              {/* ── SAVED PAGE ── */}
               {currentIndex === 2 && (
                 <div className="px-4 mt-7 flex flex-col items-center gap-5">
                   <div className="flex flex-col items-center">
@@ -1279,7 +1050,7 @@ export default function HomePage() {
           </AnimatePresence>
         </div>
 
-        {/* ── FAB: Create Room (Saved tab) ── */}
+        {/* FAB: Create Room */}
         <AnimatePresence>
           {currentIndex === 2 && (
             <motion.button
@@ -1294,7 +1065,7 @@ export default function HomePage() {
           )}
         </AnimatePresence>
 
-        {/* ── CREATE ROOM MODAL ── */}
+        {/* CREATE ROOM MODAL */}
         <AnimatePresence>
           {showAddModal && (
             <motion.div
@@ -1419,7 +1190,7 @@ export default function HomePage() {
           )}
         </AnimatePresence>
 
-        {/* ── AVATAR MODAL ── */}
+        {/* AVATAR MODAL */}
         <AnimatePresence>
           {showAvatarModal && (
             <motion.div
