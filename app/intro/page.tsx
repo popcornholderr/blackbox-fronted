@@ -2,10 +2,8 @@
 
 import { useRef, useState, useEffect, forwardRef, useCallback } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
-import { X, Copy, Check, ArrowLeft, BarChart2, Users, ShieldCheck } from "lucide-react";
-import { FaInstagram, FaLinkedin } from "react-icons/fa";
+import { X, Copy, Check, ArrowLeft, BarChart2, Users, ShieldCheck, Lock, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 /* ── primitives ─────────────────────────────────────────── */
 const Cursor = () => (
@@ -152,7 +150,210 @@ function PosterNewDrop() {
   );
 }
 
-/* ── POSTER 3: Moderation ───────────────────────────────── */
+/* ── POSTER 3: Adult Rooms ──────────────────────────────── */
+function PosterAdultRoom() {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: false, margin: "0px 0px -40px 0px" });
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (!inView) { setStep(0); return; }
+    const ts = [
+      setTimeout(() => setStep(1), 400),
+      setTimeout(() => setStep(2), 1200),
+      setTimeout(() => setStep(3), 2200),
+    ];
+    return () => ts.forEach(clearTimeout);
+  }, [inView]);
+
+  return (
+    <Card ref={ref as any}>
+      {/* subtle red shimmer */}
+      <motion.div
+        className="absolute inset-x-0 h-px pointer-events-none"
+        style={{ background: "linear-gradient(90deg, transparent 0%, #ef4444 50%, transparent 100%)", opacity: 0.2 }}
+        animate={{ top: ["10%", "90%", "10%"] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+      />
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#f87171]">Step 3</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— Adult Rooms</span>
+          <span className="ml-auto text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-red-500/30 bg-red-500/10 text-red-400">18+ Only</span>
+        </div>
+
+        <div className="rounded-[1.4rem] border-2 border-white/10 overflow-hidden" style={{ background: "#111" }}>
+          <div className="px-5 pt-5 pb-4 flex flex-col gap-3">
+            <p className="text-[9px] font-black uppercase text-white/40 tracking-widest">Room Type</p>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Safe Room */}
+              <motion.div
+                animate={step >= 1 ? { borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)" } : {}}
+                className="flex flex-col items-start gap-1 p-3 rounded-2xl border border-white/10 bg-white/[0.02]"
+              >
+                <span className="text-lg">🛡️</span>
+                <span className="text-[11px] font-black text-white/60">Safe Room</span>
+                <span className="text-[9px] text-white/25">Language filtered</span>
+              </motion.div>
+              {/* Adult Room — animates to selected */}
+              <motion.div
+                animate={step >= 1
+                  ? { borderColor: "rgba(239,68,68,0.5)", background: "rgba(239,68,68,0.08)" }
+                  : { borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)" }}
+                transition={{ duration: 0.4 }}
+                className="flex flex-col items-start gap-1 p-3 rounded-2xl border"
+              >
+                <span className="text-lg">🔞</span>
+                <span className="text-[11px] font-black text-white/80">Adult Room</span>
+                <span className="text-[9px] text-white/35">18+ only, unfiltered</span>
+              </motion.div>
+            </div>
+
+            {/* Warning banner */}
+            <AnimatePresence>
+              {step >= 2 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2 p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5"
+                >
+                  <ShieldAlert size={13} className="text-yellow-400 shrink-0 mt-0.5" />
+                  <p className="text-[9px] text-yellow-300/60 leading-relaxed">Adult language allowed. CSAM and terrorism-related content are <span className="text-yellow-300/90 font-black">always blocked</span>.</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* What's different */}
+            <AnimatePresence>
+              {step >= 3 && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl p-3 border border-red-500/20 bg-red-500/[0.05]">
+                    <p className="text-[8px] font-black uppercase text-red-400/60 mb-2">Unlocked 🔓</p>
+                    {["Strong language", "Adult humour", "Unfiltered rants", "Dark jokes"].map((w, i) => (
+                      <motion.div key={w} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.07 }} className="mb-1">
+                        <span className="text-[8px] text-red-400/80">✓ {w}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                  <div className="rounded-xl p-3 border border-white/10 bg-white/[0.03]">
+                    <p className="text-[8px] font-black uppercase text-white/30 mb-2">Still Blocked ✗</p>
+                    {["CSAM", "Terrorism content", "Doxxing", "Real threats"].map((w, i) => (
+                      <motion.div key={w} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 + i * 0.07 }} className="mb-1">
+                        <span className="text-[8px] text-white/30 line-through">{w}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-white/35 mt-3 leading-relaxed">
+          Creating a room? Choose <span className="text-[#f87171] font-black">Adult Room</span> to allow unfiltered conversation — strict safety rules still apply.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+/* ── POSTER 4: Private Rooms ────────────────────────────── */
+function PosterPrivateRoom() {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: false, margin: "0px 0px -40px 0px" });
+  const [step, setStep] = useState(0);
+  const [typedCode, setTypedCode] = useState("");
+  const code = "blackbox123";
+
+  useEffect(() => {
+    if (!inView) { setStep(0); setTypedCode(""); return; }
+    const ts = [
+      setTimeout(() => setStep(1), 400),
+      setTimeout(() => setStep(2), 1100),
+      setTimeout(() => setStep(3), 2000),
+      setTimeout(() => setStep(4), 3200),
+    ];
+    return () => ts.forEach(clearTimeout);
+  }, [inView]);
+
+  useEffect(() => {
+    if (step < 3) { setTypedCode(""); return; }
+    let i = 0;
+    const iv = setInterval(() => { i++; setTypedCode(code.slice(0, i)); if (i >= code.length) clearInterval(iv); }, 80);
+    return () => clearInterval(iv);
+  }, [step]);
+
+  return (
+    <Card ref={ref as any}>
+      <div className="flex items-center gap-2 mb-4">
+        <Lock size={11} className="text-[#60a5fa]" />
+        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#60a5fa]">Step 4</span>
+        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— Private Rooms</span>
+      </div>
+
+      <div className="rounded-[1.4rem] border-2 border-white/10 overflow-hidden" style={{ background: "#111" }}>
+        <div className="px-5 pt-5 pb-4 flex flex-col gap-3">
+          <p className="text-[9px] font-black uppercase text-white/40 tracking-widest">Visibility</p>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Public */}
+            <div className="flex flex-col items-start gap-1 p-3 rounded-2xl border border-white/10 bg-white/[0.02]">
+              <span className="text-lg">🌐</span>
+              <span className="text-[11px] font-black text-white/60">Public</span>
+              <span className="text-[9px] text-white/25">Anyone can join</span>
+            </div>
+            {/* Private — animates to selected */}
+            <motion.div
+              animate={step >= 1
+                ? { borderColor: "rgba(96,165,250,0.5)", background: "rgba(96,165,250,0.07)" }
+                : { borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)" }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col items-start gap-1 p-3 rounded-2xl border"
+            >
+              <span className="text-lg">🔒</span>
+              <span className="text-[11px] font-black text-white/80">Private</span>
+              <span className="text-[9px] text-white/35">Invite only</span>
+            </motion.div>
+          </div>
+
+          {/* Admin code field */}
+          <AnimatePresence>
+            {step >= 2 && (
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}>
+                <p className="text-[9px] font-black uppercase text-[#60a5fa]/70 tracking-widest mb-1.5 flex items-center gap-1">
+                  <Lock size={9} /> Admin Code <span className="text-white/25 normal-case font-medium">(keep this secret)</span>
+                </p>
+                <motion.div
+                  animate={step >= 3 ? { borderColor: "rgba(96,165,250,0.4)" } : { borderColor: "rgba(255,255,255,0.1)" }}
+                  className="rounded-2xl border px-4 py-3 bg-black"
+                >
+                  <span className="text-sm font-bold tracking-[0.15em] text-white">
+                    {typedCode || <span className="text-white/20 tracking-normal font-normal">E.g. blackbox123</span>}
+                    {step >= 3 && typedCode.length < code.length && <Cursor />}
+                  </span>
+                </motion.div>
+                <p className="text-[8px] text-white/25 mt-1.5">Enter this code on the room page to manage join requests.</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Confirmed state */}
+          <AnimatePresence>
+            {step >= 4 && (
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-[#60a5fa]/20 bg-[#60a5fa]/[0.06]">
+                <Check size={12} className="text-[#60a5fa] shrink-0" />
+                <p className="text-[9px] font-black uppercase text-[#60a5fa]/80 tracking-wide">Room locked — share the link to invite only</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-white/35 mt-3 leading-relaxed">
+        Private rooms are <span className="text-[#60a5fa] font-black">invite-only</span>. Share the link with your crew — outsiders need your approval to join.
+      </p>
+    </Card>
+  );
+}
+
+/* ── POSTER 5: Moderation ───────────────────────────────── */
 function PosterModeration() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: false, margin: "0px 0px -40px 0px" });
@@ -227,7 +428,7 @@ function PosterModeration() {
   );
 }
 
-/* ── POSTER 4: Polls ────────────────────────────────────── */
+/* ── POSTER 6: Polls ────────────────────────────────────── */
 function PosterPolls() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: false, margin: "0px 0px -40px 0px" });
@@ -243,7 +444,7 @@ function PosterPolls() {
     <Card ref={ref as any}>
       <div className="flex items-center gap-2 mb-4">
         <BarChart2 size={12} className="text-[#a78bfa]" />
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#a78bfa]">Step 3</span>
+        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[#a78bfa]">Step 5</span>
         <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/25">— Create a Poll</span>
       </div>
       <div className="rounded-[1.4rem] border border-white/10 p-4" style={{ background: "#111" }}>
@@ -278,53 +479,10 @@ function PosterPolls() {
   );
 }
 
-/* ── Developer Profile ──────────────────────────────────── */
-function DevProfile() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "0px 0px -40px 0px" });
-  return (
-    <motion.div ref={ref} initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }}
-      className="mx-6 rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(250,201,246,0.08)]" style={{ background: "#0a0a0a" }}>
-      <div className="flex flex-col items-center text-center p-8">
-        <div className="relative w-28 h-28 mb-5">
-          <div className="absolute inset-0 bg-[#fac9f6] rounded-[2.5rem] blur-2xl opacity-20 animate-pulse" />
-          <img src="/me.jpeg" alt="Daksh Vasani" className="w-full h-full object-cover rounded-[2.5rem] border-2 border-[#fac9f6] relative z-10" />
-        </div>
-        <h2 className="text-2xl font-black tracking-tighter uppercase italic text-white mb-1">Daksh Vasani</h2>
-        <p className="text-[10px] font-bold text-[#fac9f6] uppercase tracking-[0.3em] mb-6">Founder & Architect</p>
-        <div className="space-y-3 w-full mb-6">
-          <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-start gap-3 text-left">
-            <ShieldCheck className="text-[#fac9f6] shrink-0 mt-0.5" size={18} />
-            <div>
-              <p className="text-[11px] font-black uppercase text-white/90">Anonymous & Safe</p>
-              <p className="text-[9px] text-white/40 mt-1 leading-relaxed">Built to let students voice out without fear. AI filters block toxicity in real-time.</p>
-            </div>
-          </div>
-          <div className="relative w-full h-36 rounded-3xl overflow-hidden border border-white/10">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#fac9f6]/20 via-[#eab4ff]/20 to-[#f3d1ff]/20 blur-2xl animate-pulse" />
-            <img src="/censor.png" alt="" className="w-full h-full object-cover relative z-10" />
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] z-20" />
-            <div className="absolute bottom-3 left-4 z-30">
-              <p className="text-[10px] font-black uppercase text-white/80 tracking-widest">AI MODERATION ACTIVE</p>
-              <p className="text-[8px] text-white/40">Real-time censorship engine</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-3 w-full">
-          <a href="https://www.linkedin.com/in/daksh-vasani/" target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center p-4 bg-[#0077b5]/10 border border-[#0077b5]/20 rounded-2xl text-[#0077b5]"><FaLinkedin size={18} /></a>
-          <a href="https://www.instagram.com/wasitreallydaksh" target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center p-4 bg-pink-500/10 border border-pink-500/20 rounded-2xl text-pink-500"><FaInstagram size={18} /></a>
-        </div>
-        <p className="mt-6 text-[8px] font-black text-white/20 uppercase tracking-widest">© 2026 Black Box Protocol</p>
-      </div>
-    </motion.div>
-  );
-}
-
 /* ── PAGE ───────────────────────────────────────────────── */
 export default function IntroPage() {
   const router = useRouter();
 
-  // Touch swipe state — tracked on the scroll container
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
   const [swiping, setSwiping] = useState(false);
@@ -348,9 +506,8 @@ export default function IntroPage() {
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const dx = e.touches[0].clientX - touchStartXRef.current;
     const dy = Math.abs(e.touches[0].clientY - touchStartYRef.current);
-    // Only track horizontal swipes (not vertical scrolling)
     if (dy > 20 && !swiping) return;
-    if (dx < 0) { // left swipe only
+    if (dx < 0) {
       setSwiping(true);
       setSwipeX(dx);
     }
@@ -367,7 +524,6 @@ export default function IntroPage() {
 
   return (
     <div className="relative min-h-screen bg-black overflow-hidden">
-      {/* Swipe-away overlay — shows as page slides left */}
       <AnimatePresence>
         {leaving && (
           <motion.div
@@ -379,7 +535,6 @@ export default function IntroPage() {
         )}
       </AnimatePresence>
 
-      {/* Main scrollable content — shifts left as user swipes */}
       <motion.div
         className="min-h-screen pb-24"
         style={{
@@ -398,7 +553,6 @@ export default function IntroPage() {
           <h1 className="text-2xl font-black tracking-tighter">
             B<span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>L</span>ACK BOX
           </h1>
-          {/* Enter app button */}
           <button
             onClick={navigateHome}
             className="ml-auto flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#fac9f6] border border-[#fac9f6]/30 rounded-full px-3 py-1.5 active:scale-95 transition-transform"
@@ -452,12 +606,11 @@ export default function IntroPage() {
         <div className="px-6 flex flex-col gap-4">
           <PosterCreateRoom onCreateRoom={() => { sessionStorage.setItem('hasSeenIntro', 'true'); router.push('/?action=create'); }} />
           <PosterNewDrop />
+          <PosterAdultRoom />
+          <PosterPrivateRoom />
           <PosterModeration />
           <PosterPolls />
         </div>
-
-        <SectionLabel text="The Builder" />
-        <DevProfile />
 
         {/* Bottom CTA */}
         <div className="px-6 mt-8 pb-8">
