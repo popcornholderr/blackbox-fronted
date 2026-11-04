@@ -10,15 +10,14 @@ import { applyRoomView, formatTime, type RoomFilter, type RoomSort } from '@/lib
 /* ── Today: best drop + top poll, as a quiet horizontal strip ── */
 function TodayStrip({ bestDrop, bestPoll, onNavigate }: { bestDrop: any; bestPoll: any; onNavigate: () => void }) {
   const cards: React.ReactNode[] = [];
-  const cw = bestDrop?.drop && bestPoll?.poll ? 'w-[90%]' : 'w-full';
 
   if (bestDrop?.drop) {
     const { drop, room } = bestDrop;
     cards.push(
       <Link key="drop" href={`/room/${room?.slug ?? ''}?drop=${String(drop._id).trim()}`} onClick={onNavigate}
-        className={`tint-card press snap-start shrink-0 ${cw} rounded-[30px] p-5 flex flex-col`}
+        className="tint-card press snap-start shrink-0 w-full rounded-[26px] p-[18px] flex flex-col"
         style={{ ['--c' as any]: room?.color || '#c9c9d1' }}>
-        <div className="flex items-center gap-1.5 mb-3.5 self-start rounded-full pl-2 pr-2.5 h-[24px] text-[11.5px] font-semibold uppercase whitespace-nowrap"
+        <div className="flex items-center gap-1.5 mb-3.5 self-start rounded-full pl-2 pr-2.5 h-[24px] text-[11.5px] font-semibold uppercase"
           style={{ background: 'rgba(255,255,255,0.65)', letterSpacing: '0.04em', boxShadow: '0 0 0 0.5px rgba(0,0,0,0.06)' }}>
           <Flame size={12} strokeWidth={2.4} /> Most popular drop today
         </div>
@@ -27,7 +26,7 @@ function TodayStrip({ bestDrop, bestPoll, onNavigate }: { bestDrop: any; bestPol
           <span className="text-[14px] font-semibold truncate" style={{ letterSpacing: '-0.01em' }}>{drop.tempName || 'Anonymous'}</span>
           <span className="ml-auto text-[13px]" style={{ color: 'var(--ink-2)' }}>{formatTime(drop.createdAt)}</span>
         </div>
-        <p className="text-[17.5px] leading-[1.35] font-medium line-clamp-3 flex-1" style={{ letterSpacing: '-0.015em' }}>{drop.content}</p>
+        <p className="text-[16px] leading-[1.35] font-medium line-clamp-3 flex-1" style={{ letterSpacing: '-0.015em' }}>{drop.content}</p>
         <div className="flex items-center gap-1.5 mt-3.5 text-[14px] font-semibold" style={{ color: 'var(--ink-2)' }}>
           <Heart size={13} strokeWidth={2.2} /> {drop.likes?.length || 0}
           <span className="ml-auto truncate max-w-[50%]">{room?.title}</span>
@@ -41,13 +40,13 @@ function TodayStrip({ bestDrop, bestPoll, onNavigate }: { bestDrop: any; bestPol
     const total = poll.options?.reduce((s: number, o: any) => s + o.voters.length, 0) || 0;
     cards.push(
       <Link key="poll" href={`/room/${room?.slug ?? ''}`} onClick={onNavigate}
-        className={`tint-card press snap-start shrink-0 ${cw} rounded-[30px] p-5 flex flex-col`}
+        className="tint-card press snap-start shrink-0 w-full rounded-[26px] p-[18px] flex flex-col"
         style={{ ['--c' as any]: room?.color || '#c9c9d1' }}>
-        <div className="flex items-center gap-1.5 mb-3.5 self-start rounded-full pl-2 pr-2.5 h-[24px] text-[11.5px] font-semibold uppercase whitespace-nowrap"
+        <div className="flex items-center gap-1.5 mb-3.5 self-start rounded-full pl-2 pr-2.5 h-[24px] text-[11.5px] font-semibold uppercase"
           style={{ background: 'rgba(255,255,255,0.65)', letterSpacing: '0.04em', boxShadow: '0 0 0 0.5px rgba(0,0,0,0.06)' }}>
           <ChartNoAxesColumn size={12} strokeWidth={2.4} /> Top poll today
         </div>
-        <p className="text-[17.5px] leading-[1.3] font-semibold line-clamp-2 mb-3" style={{ letterSpacing: '-0.02em' }}>{poll.question}</p>
+        <p className="text-[16px] leading-[1.3] font-semibold line-clamp-2 mb-3" style={{ letterSpacing: '-0.02em' }}>{poll.question}</p>
         <div className="flex flex-col gap-1.5 flex-1">
           {poll.options?.slice(0, 3).map((opt: any, i: number) => {
             const pct = total > 0 ? Math.round((opt.voters.length / total) * 100) : 0;
@@ -67,7 +66,7 @@ function TodayStrip({ bestDrop, bestPoll, onNavigate }: { bestDrop: any; bestPol
 
   if (!cards.length) return null;
   return (
-    <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-pl-4 px-4 pt-5 pb-8 -mb-5">
+    <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar px-5 pt-5 -mb-1 scroll-px-5">
       {cards}
     </div>
   );

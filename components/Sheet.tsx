@@ -12,7 +12,7 @@ export default function Sheet({
         <motion.div
           className="fixed inset-0 z-[100] flex items-end justify-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: 0.2 }}
           style={{ background: 'rgba(20,20,24,0.14)' }}
           onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
@@ -20,10 +20,10 @@ export default function Sheet({
             role="dialog"
             aria-modal="true"
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 380, damping: 38 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 40, mass: 0.8 }}
             drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.5 }}
             onDragEnd={(_, i) => { if (i.offset.y > 110 || i.velocity.y > 600) onClose(); }}
-            className="glass glass-strong w-full max-w-[32rem] max-h-[88vh] overflow-y-auto rounded-t-[36px] px-5 pt-3"
+            className="glass glass-sheet w-full max-w-[32rem] max-h-[88vh] overflow-y-auto rounded-t-[36px] px-5 pt-3"
             style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}
           >
             <div className="w-9 h-[5px] rounded-full mx-auto mb-3" style={{ background: 'rgba(60,60,67,0.3)' }} />

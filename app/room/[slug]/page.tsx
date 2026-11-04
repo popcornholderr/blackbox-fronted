@@ -569,7 +569,7 @@ function RoomContent() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setFab(false)}
             className="fixed inset-0 z-40"
-            style={{ background: 'rgba(255,255,255,0.4)', WebkitBackdropFilter: 'blur(10px)', backdropFilter: 'blur(10px)' }}
+            style={{ background: 'rgba(255,255,255,0.55)' }}
           />
         )}
       </AnimatePresence>
@@ -581,7 +581,7 @@ function RoomContent() {
                 initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.8 }}
                 transition={{ type: 'spring', stiffness: 460, damping: 30, delay: 0.05 }}
                 onClick={() => { setFab(false); setShowPoll(true); }}
-                className="glass glass-strong press pointer-events-auto h-[52px] pl-5 pr-6 rounded-full flex items-center gap-2.5 text-[17.5px] font-semibold"
+                className="glass glass-sheet press pointer-events-auto h-[52px] pl-5 pr-6 rounded-full flex items-center gap-2.5 text-[17.5px] font-semibold"
                 style={{ letterSpacing: '-0.02em' }}
               >
                 <ChartNoAxesColumn size={19} strokeWidth={2} /> Poll
@@ -590,7 +590,7 @@ function RoomContent() {
                 initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.8 }}
                 transition={{ type: 'spring', stiffness: 460, damping: 30 }}
                 onClick={() => { setFab(false); setShowDrop(true); }}
-                className="glass glass-strong press pointer-events-auto h-[52px] pl-5 pr-6 rounded-full flex items-center gap-2.5 text-[17.5px] font-semibold"
+                className="glass glass-sheet press pointer-events-auto h-[52px] pl-5 pr-6 rounded-full flex items-center gap-2.5 text-[17.5px] font-semibold"
                 style={{ letterSpacing: '-0.02em' }}
               >
                 <MessageCircle size={19} strokeWidth={2} /> Drop

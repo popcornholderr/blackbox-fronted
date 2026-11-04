@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import IntroScreen from '@/components/IntroScreen';
 import TabBar, { type TabKey } from '@/components/TabBar';
 import HomeTab from '@/components/tabs/HomeTab';
@@ -238,11 +238,13 @@ export default function HomePage() {
       <div className="top-fade" aria-hidden />
 
       <main suppressHydrationWarning className="w-full max-w-[32rem] mx-auto min-h-screen relative select-none overflow-x-hidden" style={{ paddingBottom: 150 }}>
-        <motion.div
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
             key={tab}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            exit={{ opacity: 0, transition: { duration: 0.08 } }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
           >
             {tab === 'home' && (
               <HomeTab
@@ -259,7 +261,8 @@ export default function HomePage() {
               />
             )}
             {tab === 'profile' && <ProfileTab avatarIndex={avatarIndex} onAvatar={pickAvatar} inbox={inbox} onOpenRoom={openInboxRoom} />}
-        </motion.div>
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <TabBar active={tab} onChange={changeTab} badge={inbox.length > 0 ? 'profile' : null} />

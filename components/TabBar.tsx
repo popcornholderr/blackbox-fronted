@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { House, Plus, Bookmark, User } from 'lucide-react';
+import { useGlassFilter } from './useGlassFilter';
 
 export type TabKey = 'home' | 'add' | 'saved' | 'profile';
 
@@ -12,9 +13,9 @@ const TABS: { key: TabKey; label: string; Icon: typeof House }[] = [
   { key: 'profile', label: 'Profile', Icon: User },
 ];
 
-const TAB_W = 64;
-const PAD = 4;
-const BAR_H = 52;
+const TAB_W = 66;
+const PAD = 5;
+const BAR_H = 54;
 const BAR_W = TAB_W * TABS.length + PAD * 2;
 const THUMB_W = TAB_W;
 const THUMB_H = BAR_H - PAD * 2;
@@ -31,17 +32,22 @@ export default function TabBar({
   const [pressed, setPressed] = useState(false);
   const index = TABS.findIndex((t) => t.key === active);
 
+  const bar = useGlassFilter({ width: BAR_W, height: BAR_H, radius: BAR_H / 2, bezel: 14, thickness: 80, strength: 0.9 });
+  const lens = useGlassFilter({ width: THUMB_W, height: THUMB_H, radius: THUMB_H / 2, bezel: 12, thickness: 60, strength: 1, blur: 0.4, saturate: 2.1 });
+
   return (
     <nav
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-[80] flex justify-center pointer-events-none"
-      style={{ paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), 14px) + 14px)' }}
+      style={{ paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), 10px) + 10px)' }}
     >
+      {bar.defs}
+      {lens.defs}
       <div className="relative pointer-events-auto" style={{ width: BAR_W, height: BAR_H }}>
         {/* body */}
         <div
-          className="glass glass-bar absolute inset-0"
-          style={{ borderRadius: BAR_H / 2 }}
+          className="glass absolute inset-0"
+          style={{ borderRadius: BAR_H / 2, ...bar.style }}
         />
 
         {/* sliding lens */}
@@ -60,10 +66,11 @@ export default function TabBar({
             boxShadow: pressed
               ? '0 0 0 0.5px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,1), inset 0 -1px 2px rgba(255,255,255,0.6), 0 10px 22px -8px rgba(0,0,0,0.25)'
               : 'inset 0 1px 0.5px rgba(255,255,255,0.8), inset 0 0 0 0.5px rgba(255,255,255,0.4)',
+            ...(pressed ? lens.style : {}),
           }}
           animate={{ x: index * TAB_W, scaleX: pressed ? 1.16 : 1, scaleY: pressed ? 1.12 : 1 }}
           transition={{
-            x: { type: 'spring', stiffness: 420, damping: 34, mass: 0.9 },
+            x: { type: 'spring', stiffness: 520, damping: 38, mass: 0.7 },
             scaleX: { type: 'spring', stiffness: 380, damping: 22 },
             scaleY: { type: 'spring', stiffness: 380, damping: 22 },
           }}
