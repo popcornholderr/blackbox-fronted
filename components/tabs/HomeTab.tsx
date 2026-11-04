@@ -10,14 +10,15 @@ import { applyRoomView, formatTime, type RoomFilter, type RoomSort } from '@/lib
 /* ── Today: best drop + top poll, as a quiet horizontal strip ── */
 function TodayStrip({ bestDrop, bestPoll, onNavigate }: { bestDrop: any; bestPoll: any; onNavigate: () => void }) {
   const cards: React.ReactNode[] = [];
+  const cw = bestDrop?.drop && bestPoll?.poll ? 'w-[90%]' : 'w-full';
 
   if (bestDrop?.drop) {
     const { drop, room } = bestDrop;
     cards.push(
       <Link key="drop" href={`/room/${room?.slug ?? ''}?drop=${String(drop._id).trim()}`} onClick={onNavigate}
-        className="tint-card press snap-start shrink-0 w-[84%] max-w-[350px] rounded-[30px] p-[22px] flex flex-col"
+        className={`tint-card press snap-start shrink-0 ${cw} rounded-[30px] p-5 flex flex-col`}
         style={{ ['--c' as any]: room?.color || '#c9c9d1' }}>
-        <div className="flex items-center gap-1.5 mb-3.5 self-start rounded-full pl-2 pr-2.5 h-[24px] text-[11.5px] font-semibold uppercase"
+        <div className="flex items-center gap-1.5 mb-3.5 self-start rounded-full pl-2 pr-2.5 h-[24px] text-[11.5px] font-semibold uppercase whitespace-nowrap"
           style={{ background: 'rgba(255,255,255,0.65)', letterSpacing: '0.04em', boxShadow: '0 0 0 0.5px rgba(0,0,0,0.06)' }}>
           <Flame size={12} strokeWidth={2.4} /> Most popular drop today
         </div>
@@ -40,9 +41,9 @@ function TodayStrip({ bestDrop, bestPoll, onNavigate }: { bestDrop: any; bestPol
     const total = poll.options?.reduce((s: number, o: any) => s + o.voters.length, 0) || 0;
     cards.push(
       <Link key="poll" href={`/room/${room?.slug ?? ''}`} onClick={onNavigate}
-        className="tint-card press snap-start shrink-0 w-[84%] max-w-[350px] rounded-[30px] p-[22px] flex flex-col"
+        className={`tint-card press snap-start shrink-0 ${cw} rounded-[30px] p-5 flex flex-col`}
         style={{ ['--c' as any]: room?.color || '#c9c9d1' }}>
-        <div className="flex items-center gap-1.5 mb-3.5 self-start rounded-full pl-2 pr-2.5 h-[24px] text-[11.5px] font-semibold uppercase"
+        <div className="flex items-center gap-1.5 mb-3.5 self-start rounded-full pl-2 pr-2.5 h-[24px] text-[11.5px] font-semibold uppercase whitespace-nowrap"
           style={{ background: 'rgba(255,255,255,0.65)', letterSpacing: '0.04em', boxShadow: '0 0 0 0.5px rgba(0,0,0,0.06)' }}>
           <ChartNoAxesColumn size={12} strokeWidth={2.4} /> Top poll today
         </div>
@@ -66,7 +67,7 @@ function TodayStrip({ bestDrop, bestPoll, onNavigate }: { bestDrop: any; bestPol
 
   if (!cards.length) return null;
   return (
-    <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar px-5 pt-5 -mb-1">
+    <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-pl-4 px-4 pt-5 pb-8 -mb-5">
       {cards}
     </div>
   );

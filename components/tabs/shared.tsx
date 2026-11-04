@@ -54,9 +54,9 @@ export function RoomGrid({
       {loaded && rooms.map((room, i) => (
         <motion.div
           key={room._id}
-          initial={{ opacity: 0, y: 14, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5, delay: Math.min(i, 8) * 0.04, ease: [0.22, 1, 0.36, 1] }}
+          initial={i < 8 ? { opacity: 0, y: 10 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, delay: Math.min(i, 8) * 0.025, ease: [0.22, 1, 0.36, 1] }}
         >
           <RoomTile
             room={room}

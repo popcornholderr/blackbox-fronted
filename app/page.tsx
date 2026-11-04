@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import IntroScreen from '@/components/IntroScreen';
 import TabBar, { type TabKey } from '@/components/TabBar';
 import HomeTab from '@/components/tabs/HomeTab';
@@ -238,13 +238,11 @@ export default function HomePage() {
       <div className="top-fade" aria-hidden />
 
       <main suppressHydrationWarning className="w-full max-w-[32rem] mx-auto min-h-screen relative select-none overflow-x-hidden" style={{ paddingBottom: 150 }}>
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
+        <motion.div
             key={tab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, transition: { duration: 0.12 } }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
           >
             {tab === 'home' && (
               <HomeTab
@@ -261,8 +259,7 @@ export default function HomePage() {
               />
             )}
             {tab === 'profile' && <ProfileTab avatarIndex={avatarIndex} onAvatar={pickAvatar} inbox={inbox} onOpenRoom={openInboxRoom} />}
-          </motion.div>
-        </AnimatePresence>
+        </motion.div>
       </main>
 
       <TabBar active={tab} onChange={changeTab} badge={inbox.length > 0 ? 'profile' : null} />

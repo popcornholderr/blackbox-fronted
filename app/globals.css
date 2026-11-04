@@ -25,11 +25,32 @@
 
 html {
   background: var(--paper);
+  background-color: #ffffff;
   color-scheme: light;
   -webkit-text-size-adjust: 100%;
+  min-height: 100%;
+  /* no rubber-band / overscroll glow exposing whatever sits behind the page */
+  overscroll-behavior: none;
+}
+
+/* Solid white cap under the system gesture / nav bar. With viewport-fit=cover
+   the page draws edge-to-edge, so anything that doesn't paint down to the very
+   last pixel shows the OS/browser colour (the pink line). This always does. */
+html::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(env(safe-area-inset-bottom, 0px) + 2px);
+  background: #ffffff;
+  z-index: 79; /* just under the tab bar (80) */
+  pointer-events: none;
 }
 
 body {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   background: var(--paper) !important;
   color: var(--ink) !important;
   font-family: var(--font-sans);
@@ -72,7 +93,7 @@ textarea:focus {
 @media (min-width: 340px) and (max-width: 500px) {
   :root { --z: 1.1; }
   body { zoom: var(--z); }
-  .min-h-screen { min-height: calc(100vh / var(--z)); }
+  .min-h-screen { min-height: calc(100vh / var(--z)); min-height: calc(100dvh / var(--z)); }
 }
 
 @layer components {
@@ -82,6 +103,8 @@ textarea:focus {
 .atmos {
   position: fixed;
   inset: 0;
+  /* overscan 2px past the bottom so zoom rounding can't leave a gap */
+  bottom: -2px;
   z-index: -1;
   pointer-events: none;
   background:
@@ -100,8 +123,8 @@ textarea:focus {
   isolation: isolate;
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.3) 55%, rgba(244, 244, 247, 0.4) 100%);
-  -webkit-backdrop-filter: blur(22px) saturate(185%);
-  backdrop-filter: blur(22px) saturate(185%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
   box-shadow:
     0 0 0 0.5px rgba(0, 0, 0, 0.07),
     inset 0 1px 0.5px rgba(255, 255, 255, 0.95),
@@ -190,10 +213,6 @@ textarea:focus {
   z-index: 60;
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0));
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent);
-  mask-image: linear-gradient(to bottom, #000 35%, transparent);
 }
 
 /* ============================================================
@@ -205,6 +224,7 @@ textarea:focus {
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  contain: layout paint;
   background:
     linear-gradient(165deg, color-mix(in srgb, var(--c) 16%, white) 0%, color-mix(in srgb, var(--c) 7%, white) 100%);
   box-shadow:
@@ -220,25 +240,24 @@ textarea:focus {
 .tile .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(30px);
   z-index: -1;
   pointer-events: none;
 }
 .tile .blob.a {
-  width: 78%;
-  height: 78%;
-  left: -18%;
-  top: -22%;
-  background: color-mix(in srgb, var(--c) 46%, white);
-  opacity: 0.75;
+  width: 110%;
+  height: 110%;
+  left: -30%;
+  top: -36%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--c) 46%, white), transparent);
+  opacity: 0.8;
 }
 .tile .blob.b {
-  width: 70%;
-  height: 70%;
-  right: -22%;
-  bottom: -26%;
-  background: color-mix(in srgb, var(--c) 34%, white);
-  opacity: 0.7;
+  width: 96%;
+  height: 96%;
+  right: -30%;
+  bottom: -38%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--c) 34%, white), transparent);
+  opacity: 0.75;
 }
 .tile::before {
   content: "";
@@ -438,4 +457,12 @@ textarea:focus {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* Tab bar: heavy frost, no per-frame refraction filter */
+.glass-bar {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.46) 100%);
+  -webkit-backdrop-filter: blur(34px) saturate(170%);
+  backdrop-filter: blur(34px) saturate(170%);
 }
