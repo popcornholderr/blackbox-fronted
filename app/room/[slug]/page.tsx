@@ -1,360 +1,232 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react';
 import {
-  Heart, ThumbsDown, Copy, Plus, X, ArrowLeft, Check,
-  MessageCircle, BarChart2, Users, Lock, ShieldCheck,
-  UserCheck, UserX,
+  Plus, X, Check, Link2, MessageCircle, ChartNoAxesColumn, Lock, ShieldCheck,
+  UserCheck, UserX, ThumbsDown, Heart, ChevronLeft, Users, ChevronRight,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppGuard from '@/components/AppGuard';
+import Sheet, { PrimaryButton, fieldClass } from '@/components/Sheet';
+import { RoomBackdrop, RoomHeader, GlassIconButton } from '@/components/RoomChrome';
+import {
+  BASE_URL, formatTime, getUserId, trackJoinRequest, markJoinApproved, autoSaveRoom, authHeaders, adminKey,
+} from '@/lib/rooms';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const POLL_MS = 3000;
 
-/* ── helpers ── */
-function getOrCreateUserId(): string {
-  if (typeof window === 'undefined') return 'anon';
-  let id = localStorage.getItem('userId');
-  if (!id) {
-    id = 'user-' + Math.random().toString(36).slice(2);
-    localStorage.setItem('userId', id);
-  }
-  return id;
-}
-
-function formatTime(d: string) {
-  const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
-  if (diff < 60) return 'Just now';
-  if (diff < 300) return '5m ago';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-  return new Date(d).toLocaleDateString();
-}
-
 function ErrorMsg({ text, word }: { text: string; word?: string | null }) {
-  if (!word) return <span className="text-red-500">{text}</span>;
-  const lower = text.toLowerCase();
-  const idx = lower.indexOf(word.toLowerCase());
-  if (idx === -1) return <span className="text-red-500">{text}</span>;
+  if (!word) return <span>{text}</span>;
+  const idx = text.toLowerCase().indexOf(word.toLowerCase());
+  if (idx === -1) return <span>{text}</span>;
   return (
-    <span className="text-white/70">
+    <span>
       {text.slice(0, idx)}
-      <span className="text-red-500 font-black underline">{text.slice(idx, idx + word.length)}</span>
+      <span className="underline decoration-2 underline-offset-2">{text.slice(idx, idx + word.length)}</span>
       {text.slice(idx + word.length)}
     </span>
   );
 }
 
+const hint = { color: 'var(--ink-2)' } as CSSProperties;
+
 /* ── PRIVATE ROOM GATE ── */
 function PrivateRoomGate({
-  room,
-  userId,
-  onGranted,
-}: {
-  room: any;
-  userId: string;
-  onGranted: (isAdmin: boolean) => void;
-}) {
+  room, userId, onGranted, onBack,
+}: { room: any; userId: string; onGranted: (isAdmin: boolean) => void; onBack: () => void }) {
   const [mode, setMode] = useState<'choose' | 'admin' | 'request'>('choose');
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [reqName, setReqName] = useState('');
   const [reqError, setReqError] = useState('');
+  const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alreadyApproved, setAlreadyApproved] = useState(false);
-  const [checkingApproval, setCheckingApproval] = useState(true);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const check = async () => {
+    (async () => {
       try {
         const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-request/${userId}`);
         const data = await res.json();
-        if (data.status === 'approved') setAlreadyApproved(true);
-      } catch {
-        // treat as not approved
-      } finally {
-        setCheckingApproval(false);
-      }
-    };
-    check();
+        if (data.status === 'approved') {
+          setAlreadyApproved(true);
+          if (markJoinApproved(room)) autoSaveRoom(room._id);
+        } else if (data.status === 'pending') {
+          trackJoinRequest(room);
+          setSent(true);
+        }
+      } catch { /* treat as not approved */ } finally { setChecking(false); }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAdminCode = async () => {
-    if (!code.trim()) { setCodeError('Enter the admin code.'); return; }
+    if (!code.trim()) { setCodeError('Enter the code'); return; }
     setLoading(true);
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/verify-admin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }),
       });
       const data = await res.json();
       if (data.isAdmin) {
+        try { if (data.token) sessionStorage.setItem(adminKey(room.slug), data.token); } catch { /* ignore */ }
         onGranted(true);
-      } else {
-        setCodeError('Wrong code. Try again.');
-      }
-    } catch {
-      setCodeError('Network error. Try again.');
-    } finally {
-      setLoading(false);
-    }
+      } else setCodeError('Wrong code');
+    } catch { setCodeError('Network error'); } finally { setLoading(false); }
   };
 
-  const handleEnterRoom = () => onGranted(false);
-
   const handleJoinRequest = async () => {
-    if (!reqName.trim()) { setReqError('Enter your name.'); return; }
+    if (!reqName.trim()) { setReqError('Enter a name'); return; }
     setLoading(true);
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, name: reqName }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, name: reqName }),
       });
       const data = await res.json();
       if (data.status === 'approved') {
+        if (markJoinApproved(room)) autoSaveRoom(room._id);
         onGranted(false);
       } else if (data.status === 'pending') {
-        setReqError('Request sent! Wait for admin approval, then come back.');
-      } else {
-        setReqError(data.error || 'Failed to send request.');
-      }
-    } catch {
-      setReqError('Network error. Try again.');
-    } finally {
-      setLoading(false);
-    }
+        trackJoinRequest(room);
+        setSent(true);
+        setMode('choose');
+      } else setReqError(data.error || 'Could not send');
+    } catch { setReqError('Network error'); } finally { setLoading(false); }
   };
 
+  const Row = ({ icon, title, sub, onClick, disabled }: { icon: React.ReactNode; title: string; sub?: string; onClick?: () => void; disabled?: boolean }) => (
+    <button
+      type="button" onClick={onClick} disabled={disabled}
+      className="group-row w-full flex items-center gap-3.5 px-4 py-3.5 text-left active:bg-black/[0.04] transition-colors disabled:opacity-50"
+    >
+      <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--fill)' }}>{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-[18px] font-semibold" style={{ letterSpacing: '-0.02em' }}>{title}</span>
+        {sub && <span className="block text-[14px] mt-0.5" style={hint}>{sub}</span>}
+      </span>
+      {!disabled && <ChevronRight size={18} strokeWidth={2.2} style={{ color: 'var(--ink-3)' }} />}
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-5">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-sm"
-      >
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-[1.5rem] border-2 border-[#60a5fa]/30 bg-[#60a5fa]/10 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(96,165,250,0.15)]">
-            <Lock size={28} className="text-[#60a5fa]" />
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 relative">
+      <RoomBackdrop color={room.color} />
+      <div className="fixed left-4 z-10" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}>
+        <GlassIconButton onClick={mode === 'choose' ? onBack : () => { setMode('choose'); setCodeError(''); setReqError(''); }} label="Back">
+          <ChevronLeft size={22} strokeWidth={2.4} className="-ml-0.5" />
+        </GlassIconButton>
+      </div>
+
+      <motion.div initial={{ opacity: 0, y: 18, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 26 }} className="w-full max-w-sm">
+        <div className="flex flex-col items-center mb-9">
+          <div className="glass w-[82px] h-[82px] rounded-full flex items-center justify-center mb-5">
+            <Lock size={28} strokeWidth={1.9} />
           </div>
-          <h1 className="text-xl font-black uppercase italic tracking-tight text-white mb-1" style={{ color: room.color }}>
-            {room.title}
-          </h1>
-          <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Private Room</p>
+          <h1 className="text-[30px] font-bold text-center" style={{ letterSpacing: '-0.04em' }}>{room.title}</h1>
         </div>
 
-        {mode === 'choose' && (
-          <div className="rounded-[2rem] border border-white/10 p-6 bg-[#0a0a0a] flex flex-col gap-3">
-            <button
-              onClick={() => setMode('admin')}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#60a5fa]/25 bg-[#60a5fa]/5 active:scale-[0.98] transition-all text-left"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[#60a5fa]/10 flex items-center justify-center shrink-0">
-                <ShieldCheck size={18} className="text-[#60a5fa]" />
-              </div>
-              <div>
-                <p className="text-[12px] font-black uppercase text-white/80">Enter Admin Code</p>
-                <p className="text-[9px] text-white/35">Admins only — manage the room</p>
-              </div>
-            </button>
+        <AnimatePresence mode="wait">
+          {mode === 'choose' && (
+            <motion.div key="choose" initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -14 }} className="group-card">
+              <Row icon={<ShieldCheck size={19} strokeWidth={1.9} />} title="Admin code" onClick={() => setMode('admin')} />
+              {checking ? (
+                <Row icon={<Users size={19} strokeWidth={1.9} />} title="Checking" disabled />
+              ) : alreadyApproved ? (
+                <Row icon={<UserCheck size={19} strokeWidth={1.9} />} title="Enter room" sub="You're approved" onClick={() => onGranted(false)} />
+              ) : sent ? (
+                <Row icon={<Users size={19} strokeWidth={1.9} />} title="Request sent" sub="You'll find it in your inbox once approved" disabled />
+              ) : (
+                <Row icon={<Users size={19} strokeWidth={1.9} />} title="Request to join" onClick={() => setMode('request')} />
+              )}
+            </motion.div>
+          )}
 
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-[9px] font-black text-white/25 uppercase tracking-widest">or</span>
-              <div className="flex-1 h-px bg-white/10" />
-            </div>
+          {mode === 'admin' && (
+            <motion.div key="admin" initial={{ opacity: 0, x: 14 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 14 }} className="flex flex-col gap-3">
+              <input
+                className={`${fieldClass} ${codeError ? 'animate-shake' : ''}`} type="password" placeholder="Admin code" autoFocus
+                value={code} onChange={(e) => { setCode(e.target.value); setCodeError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAdminCode(); }}
+              />
+              <div className="h-5 text-[14px] font-semibold px-1" style={hint}>{codeError}</div>
+              <PrimaryButton onClick={handleAdminCode} disabled={loading}>{loading ? 'Verifying' : 'Continue'}</PrimaryButton>
+            </motion.div>
+          )}
 
-            {checkingApproval ? (
-              <div className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.03] opacity-40">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                  <Users size={18} className="text-white/50" />
-                </div>
-                <p className="text-[12px] font-black uppercase text-white/50 animate-pulse">Checking...</p>
-              </div>
-            ) : alreadyApproved ? (
-              <button
-                onClick={handleEnterRoom}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-green-500/25 bg-green-500/5 active:scale-[0.98] transition-all text-left"
-              >
-                <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
-                  <UserCheck size={18} className="text-green-400" />
-                </div>
-                <div>
-                  <p className="text-[12px] font-black uppercase text-white/80">Enter the Room</p>
-                  <p className="text-[9px] text-white/35">You&apos;re approved — go right in</p>
-                </div>
-              </button>
-            ) : (
-              <button
-                onClick={() => setMode('request')}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.03] active:scale-[0.98] transition-all text-left"
-              >
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                  <Users size={18} className="text-white/50" />
-                </div>
-                <div>
-                  <p className="text-[12px] font-black uppercase text-white/80">Request to Join</p>
-                  <p className="text-[9px] text-white/35">Submit your name and wait for approval</p>
-                </div>
-              </button>
-            )}
-          </div>
-        )}
-
-        {mode === 'admin' && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-            className="rounded-[2rem] border border-[#60a5fa]/20 p-6 bg-[#0a0a0a]"
-          >
-            <div className="flex items-center gap-2 mb-5">
-              <button onClick={() => { setMode('choose'); setCode(''); setCodeError(''); }} className="p-1 text-white/40 hover:text-white transition-colors">
-                <ArrowLeft size={16} />
-              </button>
-              <h2 className="text-base font-black uppercase italic text-white">Admin Code</h2>
-            </div>
-            <input
-              className={`w-full border p-4 rounded-2xl mb-2 outline-none font-bold text-white bg-black placeholder:text-white/20 text-sm tracking-[0.2em] ${codeError ? 'border-red-500/50' : 'border-[#60a5fa]/20'}`}
-              placeholder="Enter your admin code"
-              value={code}
-              type="password"
-              onChange={e => { setCode(e.target.value); setCodeError(''); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleAdminCode(); }}
-            />
-            {codeError && <p className="text-[10px] text-red-400 font-black uppercase mb-3 animate-pulse">{codeError}</p>}
-            <button
-              onClick={handleAdminCode}
-              disabled={loading}
-              className="w-full py-4 rounded-2xl font-black uppercase tracking-wider text-sm bg-[#60a5fa] text-black active:scale-95 transition-all mt-3 disabled:opacity-50"
-            >
-              {loading ? 'Verifying...' : 'Open Admin Panel'}
-            </button>
-          </motion.div>
-        )}
-
-        {mode === 'request' && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-            className="rounded-[2rem] border border-white/10 p-6 bg-[#0a0a0a]"
-          >
-            <div className="flex items-center gap-2 mb-5">
-              <button onClick={() => { setMode('choose'); setReqName(''); setReqError(''); }} className="p-1 text-white/40 hover:text-white transition-colors">
-                <ArrowLeft size={16} />
-              </button>
-              <h2 className="text-base font-black uppercase italic text-white">Request to Join</h2>
-            </div>
-            <p className="text-[10px] text-white/35 mb-4 leading-relaxed">
-              Enter a name so the admin knows who&apos;s requesting. It doesn&apos;t have to be your real name.
-            </p>
-            <input
-              className={`w-full border p-4 rounded-2xl mb-2 outline-none font-bold text-white bg-black placeholder:text-white/20 text-sm ${reqError ? 'border-red-500/50' : 'border-white/10'}`}
-              placeholder="Your display name"
-              value={reqName}
-              onChange={e => { setReqName(e.target.value); setReqError(''); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleJoinRequest(); }}
-            />
-            {reqError && <p className="text-[10px] text-red-400 font-black uppercase mb-3 animate-pulse">{reqError}</p>}
-            <button
-              onClick={handleJoinRequest}
-              disabled={loading}
-              className="w-full py-4 rounded-2xl font-black uppercase tracking-wider text-sm bg-white text-black active:scale-95 transition-all mt-3 disabled:opacity-50"
-            >
-              {loading ? 'Sending...' : 'Send Request'}
-            </button>
-          </motion.div>
-        )}
+          {mode === 'request' && (
+            <motion.div key="request" initial={{ opacity: 0, x: 14 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 14 }} className="flex flex-col gap-3">
+              <input
+                className={`${fieldClass} ${reqError ? 'animate-shake' : ''}`} placeholder="Your name" autoFocus maxLength={30}
+                value={reqName} onChange={(e) => { setReqName(e.target.value); setReqError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleJoinRequest(); }}
+              />
+              <div className="h-5 text-[14px] font-semibold px-1" style={hint}>{reqError}</div>
+              <PrimaryButton onClick={handleJoinRequest} disabled={loading}>{loading ? 'Sending' : 'Send request'}</PrimaryButton>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
 }
 
 /* ── ADMIN PANEL ── */
-function AdminPanel({ room, onClose }: { room: any; onClose: () => void }) {
+function AdminPanel({ room, open, onClose }: { room: any; open: boolean; onClose: () => void }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchRequests = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-requests`);
+      const res = await fetch(`${BASE_URL}/api/rooms/${room._id}/join-requests`, { headers: authHeaders(room.slug) });
       const data = await res.json();
       setRequests(Array.isArray(data) ? data : []);
-    } catch {
-      setRequests([]);
-    } finally {
-      setLoading(false);
-    }
+    } catch { setRequests([]); } finally { setLoading(false); }
   }, [room._id]);
 
   useEffect(() => {
+    if (!open) return;
     fetchRequests();
-    pollRef.current = setInterval(fetchRequests, 3000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [fetchRequests]);
+    const t = setInterval(fetchRequests, 3000);
+    return () => clearInterval(t);
+  }, [open, fetchRequests]);
 
-  const handleAction = async (requestId: string, action: 'approved' | 'denied' | 'kick') => {
-    await fetch(`${BASE_URL}/api/rooms/${room._id}/join-requests/${requestId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    });
+  const act = async (id: string, action: 'approved' | 'denied' | 'kick') => {
+    setRequests((r) => r.filter((x) => x._id !== id));
+    await fetch(`${BASE_URL}/api/rooms/${room._id}/join-requests/${id}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(room.slug) }, body: JSON.stringify({ action }),
+    }).catch(() => {});
     fetchRequests();
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-end justify-center p-0"
-    >
-      <motion.div
-        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="w-full max-w-md rounded-t-[2rem] bg-[#0a0a0a] border-t border-x border-white/10 px-5 pt-5 pb-10 max-h-[80vh] overflow-y-auto"
-      >
-        <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <ShieldCheck size={16} className="text-[#60a5fa]" />
-            <h2 className="text-lg font-black uppercase italic text-white">Admin Panel</h2>
-          </div>
-          <button onClick={onClose} className="text-white/40 p-1 hover:text-white"><X size={20} /></button>
+    <Sheet open={open} onClose={onClose} title="Requests">
+      {loading ? (
+        <div className="py-12 text-center text-[16px] font-semibold" style={{ color: 'var(--ink-3)' }}>&nbsp;</div>
+      ) : requests.length === 0 ? (
+        <div className="py-12 flex flex-col items-center gap-3" style={{ color: 'var(--ink-3)' }}>
+          <Users size={28} strokeWidth={1.6} />
+          <span className="text-[16px] font-semibold">No requests</span>
         </div>
-        {loading && <p className="text-white/30 text-center text-xs font-black uppercase py-6">Loading...</p>}
-        {!loading && requests.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-white/20 text-xs font-black uppercase tracking-widest">No pending requests</p>
-            <p className="text-white/10 text-[10px] mt-1">Share the room link to invite people</p>
-          </div>
-        )}
-        {!loading && requests.length > 0 && (
-          <div className="flex flex-col gap-3">
-            <p className="text-[10px] font-black uppercase text-white/30 tracking-widest">
-              {requests.length} pending request{requests.length !== 1 ? 's' : ''}
-            </p>
-            {requests.map((req: any) => (
-              <div key={req._id} className="flex items-center gap-3 p-4 rounded-2xl border border-white/8 bg-white/[0.03]">
-                <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0 text-base">👤</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-black text-white/80 truncate">{req.name}</p>
-                  <p className="text-[9px] text-white/25 uppercase tracking-wider">{formatTime(req.createdAt)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleAction(req._id, 'approved')} className="w-8 h-8 rounded-xl bg-green-500/15 border border-green-500/25 flex items-center justify-center active:scale-90 transition-all">
-                    <UserCheck size={14} className="text-green-400" />
-                  </button>
-                  <button onClick={() => handleAction(req._id, 'denied')} className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center active:scale-90 transition-all">
-                    <UserX size={14} className="text-red-400" />
-                  </button>
-                </div>
+      ) : (
+        <div className="group-card mb-2" style={{ background: 'rgba(255,255,255,0.6)' }}>
+          {requests.map((req) => (
+            <div key={req._id} className="group-row flex items-center gap-3 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[17.5px] font-semibold truncate" style={{ letterSpacing: '-0.02em' }}>{req.name}</p>
+                <p className="text-[13.5px]" style={hint}>{formatTime(req.createdAt)}</p>
               </div>
-            ))}
-          </div>
-        )}
-      </motion.div>
-    </motion.div>
+              <button onClick={() => act(req._id, 'denied')} aria-label="Deny" className="press w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--fill)' }}>
+                <UserX size={17} strokeWidth={2} style={{ color: 'var(--ink-2)' }} />
+              </button>
+              <button onClick={() => act(req._id, 'approved')} aria-label="Approve" className="press w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ background: 'var(--ink)' }}>
+                <UserCheck size={17} strokeWidth={2} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Sheet>
   );
 }
 
@@ -364,16 +236,17 @@ function RoomContent() {
   const router = useRouter();
 
   const [data, setData] = useState<any>(null);
-  const [showDropModal, setShowDropModal] = useState(false);
-  const [showPollModal, setShowPollModal] = useState(false);
-  const [showFabMenu, setShowFabMenu] = useState(false);
+  const [showDrop, setShowDrop] = useState(false);
+  const [showPoll, setShowPoll] = useState(false);
+  const [fab, setFab] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try { return !!sessionStorage.getItem(adminKey(String(slug))); } catch { return false; }
+  });
 
-  // ── KEY FIX: gateCleared is seeded from sessionStorage on mount.
-  // When the user navigates to a drop-detail and presses Back, Next.js
-  // remounts RoomContent. We check sessionStorage so the gate is
-  // skipped automatically — the user already passed it this session.
+  // gate clearance survives a trip into a drop and back
   const GATE_KEY = `gateCleared-${slug}`;
   const [gateCleared, setGateCleared] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -392,60 +265,67 @@ function RoomContent() {
   const [pollError, setPollError] = useState<string | null>(null);
   const [pollBadWord, setPollBadWord] = useState<string | null>(null);
 
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const focusDone = useRef(false);
   const [seenDrops, setSeenDrops] = useState<string[]>([]);
   const [newDropIds, setNewDropIds] = useState<string[]>([]);
   const knownIdsRef = useRef<Set<string>>(new Set());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Key for scroll position of THIS room page
   const ROOM_SCROLL_KEY = `scrollPos-room-${slug}`;
-
-  const userId = getOrCreateUserId();
+  const userId = getUserId();
 
   useEffect(() => {
-    const sd = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
-    setSeenDrops(sd);
+    setSeenDrops(JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]'));
   }, [slug]);
 
-  // ── Restore room scroll when coming back from a drop-detail page ──
+  // arriving from "Most popular drop today": remember which drop we came for
+  useEffect(() => {
+    const d = new URLSearchParams(window.location.search).get('drop');
+    if (d) setFocusId(d.trim());
+  }, [slug]);
+
   useEffect(() => {
     if (!data) return;
-    // Only attempt restore after gate is cleared
     if (data.room?.isPrivate && !gateCleared) return;
-
     const saved = sessionStorage.getItem(ROOM_SCROLL_KEY);
-    if (!saved) return;
-    const target = parseInt(saved, 10);
-    sessionStorage.removeItem(ROOM_SCROLL_KEY);
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: target, behavior: 'instant' });
-      });
-    });
+    if (saved) {
+      // coming back from a drop: return to where we were
+      const target = parseInt(saved, 10);
+      sessionStorage.removeItem(ROOM_SCROLL_KEY);
+      focusDone.current = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: target, behavior: 'instant' as ScrollBehavior })));
+      return;
+    }
+    if (!focusId || focusDone.current) return;
+    if (!(data.drops || []).some((d: any) => String(d._id).trim() === focusId)) return;
+    focusDone.current = true;
+    // jump straight to the drop, centered on screen
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.getElementById(`drop-${focusId}`)?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+    }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, gateCleared]);
+  }, [data, gateCleared, focusId]);
 
   const fetchRoom = useCallback(async (silent = false) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/rooms/${slug}`);
+      const res = await fetch(`${BASE_URL}/api/rooms/${slug}`, { headers: authHeaders(String(slug)) });
       if (!res.ok) return;
       const incoming = await res.json();
       if (!silent) {
-        const ids = incoming.drops.map((d: any) => String(d._id).trim());
-        knownIdsRef.current = new Set(ids);
+        knownIdsRef.current = new Set(incoming.drops.map((d: any) => String(d._id).trim()));
         setData(incoming);
         return;
       }
-      const incomingIds = incoming.drops.map((d: any) => String(d._id).trim());
-      const brandNew = incomingIds.filter((id: string) => !knownIdsRef.current.has(id));
+      const ids = incoming.drops.map((d: any) => String(d._id).trim());
+      const brandNew = ids.filter((id: string) => !knownIdsRef.current.has(id));
       if (brandNew.length) {
         brandNew.forEach((id: string) => knownIdsRef.current.add(id));
-        setNewDropIds(prev => [...prev, ...brandNew]);
-        setTimeout(() => setNewDropIds(prev => prev.filter(id => !brandNew.includes(id))), 800);
+        setNewDropIds((prev) => [...prev, ...brandNew]);
+        setTimeout(() => setNewDropIds((prev) => prev.filter((id) => !brandNew.includes(id))), 800);
       }
       setData(incoming);
-    } catch { }
+    } catch { /* keep last good data */ }
   }, [slug]);
 
   useEffect(() => {
@@ -458,38 +338,34 @@ function RoomContent() {
     const mark = () => {
       if (!data) return;
       const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
-      const newIds = data.drops.map((d: any) => String(d._id).trim()).filter((id: string) => !cs.includes(id));
-      localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...newIds]));
+      const add = data.drops.map((d: any) => String(d._id).trim()).filter((id: string) => !cs.includes(id));
+      localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...add]));
     };
     window.addEventListener('beforeunload', mark);
     return () => window.removeEventListener('beforeunload', mark);
   }, [data, slug]);
 
-  // ── Persist gate clearance so back-nav from drop detail skips it ──
   const handleGateGranted = useCallback((adminFlag: boolean) => {
     sessionStorage.setItem(GATE_KEY, '1');
     setGateCleared(true);
-    if (adminFlag) setShowAdminPanel(true);
-  }, [GATE_KEY]);
+    if (adminFlag) { setIsAdmin(true); setShowAdmin(true); }
+    fetchRoom(false); // contents are only sent once the server knows we're allowed in
+  }, [GATE_KEY, fetchRoom]);
 
   const handleBack = () => {
     if (data) {
       const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
-      const nids = data.drops
-        .map((d: any) => String(d._id).trim())
-        .filter((id: string) => !cs.includes(id));
-      localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...nids]));
+      const add = data.drops.map((d: any) => String(d._id).trim()).filter((id: string) => !cs.includes(id));
+      localStorage.setItem(`seenDrops-${slug}`, JSON.stringify([...cs, ...add]));
     }
     if (timerRef.current) clearInterval(timerRef.current);
-    if (window.history.length <= 2) router.push('/');
-    else router.back();
+    if (window.history.length <= 2) router.push('/'); else router.back();
   };
 
   const handleVote = async (dropId: string, type: 'likes' | 'dislikes', e: React.MouseEvent) => {
     e.stopPropagation();
     await fetch(`${BASE_URL}/api/drops/${dropId}/vote`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, type }),
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(String(slug)) }, body: JSON.stringify({ userId, type }),
     }).catch(() => {});
     fetchRoom(true);
   };
@@ -497,8 +373,7 @@ function RoomContent() {
   const handlePollVote = async (pollId: string, optionIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
     await fetch(`${BASE_URL}/api/polls/${pollId}/vote`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, optionIndex }),
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(String(slug)) }, body: JSON.stringify({ userId, optionIndex }),
     }).catch(() => {});
     fetchRoom(true);
   };
@@ -508,42 +383,41 @@ function RoomContent() {
     setDropError(null); setDropBadWord(null);
     const av = parseInt(localStorage.getItem('avatarIndex') || '0');
     const res = await fetch(`${BASE_URL}/api/drops`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(String(slug)) },
       body: JSON.stringify({ roomId: data.room._id, content: dropContent, tempName: dropName || 'Anonymous', avatarIndex: av }),
     });
     if (!res.ok) {
       const r = await res.json();
-      setDropError(r.error || 'Something went wrong.');
+      setDropError(r.error || 'Something went wrong');
       setDropBadWord(r.abusiveWord || null);
       setTimeout(() => { setDropError(null); setDropBadWord(null); }, 3000);
       return;
     }
-    setShowDropModal(false); setDropContent(''); setDropName('');
+    setShowDrop(false); setDropContent(''); setDropName('');
     fetchRoom(true);
   };
 
   const handleCreatePoll = async () => {
-    const opts = pollOptions.filter(o => o.trim());
-    if (!pollQuestion.trim()) { setPollError('Question is required.'); return; }
-    if (opts.length < 2) { setPollError('At least 2 options required.'); return; }
+    const opts = pollOptions.filter((o) => o.trim());
+    if (!pollQuestion.trim()) { setPollError('Add a question'); return; }
+    if (opts.length < 2) { setPollError('Add at least 2 options'); return; }
     setPollError(null); setPollBadWord(null);
     const av = parseInt(localStorage.getItem('avatarIndex') || '0');
     const res = await fetch(`${BASE_URL}/api/polls`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(String(slug)) },
       body: JSON.stringify({ roomId: data.room._id, question: pollQuestion, options: opts, allowMultiple: pollMultiple, tempName: pollName || 'Anonymous', avatarIndex: av }),
     });
     if (!res.ok) {
       const r = await res.json();
-      setPollError(r.error || 'Something went wrong.');
+      setPollError(r.error || 'Something went wrong');
       setPollBadWord(r.abusiveWord || null);
       setTimeout(() => { setPollError(null); setPollBadWord(null); }, 3000);
       return;
     }
-    setShowPollModal(false); setPollQuestion(''); setPollName(''); setPollOptions(['', '']); setPollMultiple(false);
+    setShowPoll(false); setPollQuestion(''); setPollName(''); setPollOptions(['', '']); setPollMultiple(false);
     fetchRoom(true);
   };
 
-  // ── Save THIS room's scroll before navigating into a drop ──
   const navigateToDrop = (dropId: string) => {
     sessionStorage.setItem(ROOM_SCROLL_KEY, String(window.scrollY));
     const cs = JSON.parse(localStorage.getItem(`seenDrops-${slug}`) || '[]');
@@ -551,374 +425,251 @@ function RoomContent() {
     router.push(`/room/${slug}/${dropId}`);
   };
 
-  const getItemStyle = (index: number) => {
-    const op = ['12', '18', '25', '10'];
-    return {
-      backgroundColor: `${data.room.color}${op[index % op.length]}`,
-      borderLeft: `4px solid ${data.room.color}40`,
-    };
+  const copyLink = () => {
+    navigator.clipboard?.writeText(`${window.location.origin}/room/${slug}`).catch(() => {});
+    setCopied(true); setTimeout(() => setCopied(false), 1800);
   };
 
+  /* ── loading ── */
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-xl font-black italic animate-pulse uppercase tracking-tighter text-white">
-          Fetching Drops...
+      <div className="min-h-screen relative">
+        <RoomHeader title="" onBack={() => router.push('/')} />
+        <div className="masonry-grid px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 84px)' }}>
+          {[150, 110, 190, 130, 100, 160].map((h, i) => (
+            <div key={i} className="masonry-item skeleton rounded-[28px]" style={{ height: h, animationDelay: `${i * 90}ms` }} />
+          ))}
         </div>
       </div>
     );
   }
 
-  // ── Show gate only for private rooms that haven't been cleared this session ──
   if (data.room.isPrivate && !gateCleared) {
-    return (
-      <PrivateRoomGate
-        room={data.room}
-        userId={userId}
-        onGranted={handleGateGranted}
-      />
-    );
+    return <PrivateRoomGate room={data.room} userId={userId} onGranted={handleGateGranted} onBack={handleBack} />;
   }
 
   const drops = (data.drops || []).map((d: any) => ({ ...d, _type: 'drop' }));
   const polls = (data.polls || []).map((p: any) => ({ ...p, _type: 'poll' }));
-  const feed = [...drops, ...polls].sort(
-    (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const feed = [...drops, ...polls].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const roomVars = { ['--c' as any]: data.room.color } as CSSProperties;
 
   return (
-    <main className="min-h-screen pb-32 relative overflow-x-hidden" style={{ backgroundColor: `${data.room.color}05` }}>
-
-      {/* HEADER */}
-      <header className="p-5 bg-black/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 flex items-center">
-        <button onClick={handleBack} className="p-2 border border-white/20 rounded-xl bg-black">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="flex-1 text-center">
-          <div className="flex items-center justify-center gap-2">
-            {data.room.isPrivate && <Lock size={13} className="text-[#93c5fd] shrink-0" />}
-            {data.room.isAdult && !data.room.isPrivate && <span className="text-[11px]">🔞</span>}
-            {!data.room.isAdult && !data.room.isPrivate && <span className="text-[11px]">🛡️</span>}
-            <h1 className="text-2xl font-black uppercase italic truncate max-w-[160px]" style={{ color: data.room.color }}>
-              {data.room.title}
-            </h1>
-            {data.room.isAdult && (
-              <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black bg-red-500/80 text-white shrink-0">18+</span>
+    <main className="min-h-screen relative overflow-x-hidden max-w-[32rem] mx-auto" style={{ ...roomVars, paddingBottom: 150 }}>
+      <RoomBackdrop color={data.room.color} />
+      <RoomHeader
+        title={data.room.title}
+        lock={data.room.isPrivate}
+        onBack={handleBack}
+        right={
+          <>
+            {isAdmin && (
+              <GlassIconButton onClick={() => setShowAdmin(true)} label="Requests"><ShieldCheck size={19} strokeWidth={2} /></GlassIconButton>
             )}
-          </div>
-          <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] font-bold text-white/25 tracking-widest uppercase">
-            <span>blackbox-omega-peach.vercel.app/room/{slug}</span>
-            <button onClick={() => { navigator.clipboard.writeText(`${window.location.host}/room/${slug}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-              {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
-            </button>
-          </div>
-        </div>
-        <div className="w-10" />
-      </header>
+            <GlassIconButton onClick={copyLink} label="Copy link">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span key={copied ? 'c' : 'l'} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.16 }}>
+                  {copied ? <Check size={19} strokeWidth={2.6} /> : <Link2 size={19} strokeWidth={2} />}
+                </motion.span>
+              </AnimatePresence>
+            </GlassIconButton>
+          </>
+        }
+      />
 
       {/* FEED */}
-      <div className="p-4 masonry-grid">
-        {feed.map((item: any, idx: number) => {
+      <div className="px-4 masonry-grid" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 84px)' }}>
+        {feed.length === 0 && (
+          <div className="flex flex-col items-center gap-3 pt-24" style={{ columnSpan: 'all', color: 'var(--ink-3)' }}>
+            <MessageCircle size={30} strokeWidth={1.5} />
+          </div>
+        )}
+        {feed.map((item: any) => {
           if (item._type === 'poll') {
-            const totalV = item.options.reduce((s: number, o: any) => s + o.voters.length, 0);
-            const userVoted = item.options.some((o: any) => o.voters.includes(userId));
+            const total = item.options.reduce((s: number, o: any) => s + o.voters.length, 0);
+            const voted = item.options.some((o: any) => o.voters.includes(userId));
             return (
-              <div
-                key={String(item._id)}
-                className="masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col"
-                style={getItemStyle(idx)}
-              >
+              <div key={String(item._id)} className="tint-card masonry-item rounded-[28px] p-4" style={roomVars}>
                 <div className="flex items-center gap-2 mb-3">
-                  <img src={`/avatars/${item.avatarIndex ?? 0}.png`} className="w-8 h-8 rounded-full border shadow-sm" alt="" />
-                  <span className="text-[10px] font-black uppercase text-white/60 truncate max-w-[70px]">{item.tempName}</span>
-                  <div className="ml-auto flex items-center gap-1 bg-[#a78bfa]/10 border border-[#a78bfa]/20 rounded-full px-2 py-0.5">
-                    <BarChart2 size={8} className="text-[#a78bfa]" />
-                    <span className="text-[7px] font-black uppercase text-[#a78bfa]">Poll</span>
-                  </div>
+                  <img src={`/avatars/${item.avatarIndex ?? 0}.png`} className="w-8 h-8 rounded-full" alt="" />
+                  <span className="text-[14px] font-semibold truncate flex-1" style={{ letterSpacing: '-0.01em' }}>{item.tempName}</span>
+                  <ChartNoAxesColumn size={15} strokeWidth={2.2} style={{ color: 'var(--ink-3)' }} />
                 </div>
-                <p className="text-sm font-bold text-white/90 mb-3 leading-snug">{item.question}</p>
+                <p className="text-[16.5px] font-semibold leading-snug mb-3" style={{ letterSpacing: '-0.02em' }}>{item.question}</p>
                 <div className="flex flex-col gap-1.5">
                   {item.options.map((opt: any, i: number) => {
-                    const pct = totalV > 0 ? Math.round((opt.voters.length / totalV) * 100) : 0;
-                    const voted = opt.voters.includes(userId);
+                    const pct = total > 0 ? Math.round((opt.voters.length / total) * 100) : 0;
+                    const mine = opt.voters.includes(userId);
                     return (
                       <button
-                        key={i}
-                        onClick={(e) => handlePollVote(String(item._id), i, e)}
-                        className="relative overflow-hidden rounded-xl border border-white/10 text-left active:scale-[0.98] transition-transform"
-                        style={{ background: 'rgba(255,255,255,0.04)' }}
+                        key={i} onClick={(e) => handlePollVote(String(item._id), i, e)}
+                        className="press relative overflow-hidden rounded-full text-left min-h-[37px]"
+                        style={{ background: 'rgba(255,255,255,0.6)', boxShadow: mine ? '0 0 0 1.5px var(--ink)' : '0 0 0 0.5px rgba(0,0,0,0.06)' }}
                       >
-                        {userVoted && (
-                          <div
-                            className="absolute inset-y-0 left-0 rounded-xl"
-                            style={{ width: `${pct}%`, background: voted ? 'rgba(167,139,250,0.3)' : 'rgba(255,255,255,0.06)', transition: 'width 0.7s ease' }}
-                          />
+                        {voted && (
+                          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(pct, 3)}%`, background: mine ? 'rgba(11,11,13,0.14)' : 'rgba(11,11,13,0.06)', transition: 'width .7s var(--ease)' }} />
                         )}
-                        <div className="relative px-3 py-2.5 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${voted ? 'border-[#a78bfa] bg-[#a78bfa]' : 'border-white/25'}`} />
-                            <span className="text-[11px] text-white/80">{opt.text}</span>
-                          </div>
-                          {userVoted && <span className="text-[9px] font-black text-white/40 shrink-0">{pct}%</span>}
+                        <div className="relative px-3.5 py-2 flex items-center justify-between gap-2">
+                          <span className="text-[14.5px] font-medium">{opt.text}</span>
+                          {voted && <span className="text-[13px] font-semibold shrink-0" style={hint}>{pct}%</span>}
                         </div>
                       </button>
                     );
                   })}
                 </div>
-                <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[9px] text-white/30 font-bold">
-                    <Users size={10} />
-                    <span>{totalV} vote{totalV !== 1 ? 's' : ''}</span>
-                  </div>
-                  <span className="text-[8px] font-black uppercase text-white/25">{formatTime(item.createdAt)}</span>
+                <div className="mt-3 flex items-center justify-between text-[13px] font-medium" style={hint}>
+                  <span>{total}</span>
+                  <span>{formatTime(item.createdAt)}</span>
                 </div>
               </div>
             );
           }
 
           const dropId = String(item._id).trim();
-          const hasLiked = item.likes.includes(userId);
-          const hasDisliked = item.dislikes.includes(userId);
+          const liked = item.likes.includes(userId);
+          const disliked = item.dislikes.includes(userId);
           const isNew = !seenDrops.includes(dropId);
           const rc = (item.replies || []).length;
-          const isLong = item.content.length > 50;
-          const display = isLong ? item.content.slice(0, 50) + '…' : item.content;
-          const justArrived = newDropIds.includes(dropId);
+          const isLong = item.content.length > 90;
+          const isFocus = focusId === dropId;
+          const display = isLong && !isFocus ? item.content.slice(0, 90).trimEnd() + '…' : item.content;
 
           return (
             <div
               key={dropId}
+              id={`drop-${dropId}`}
               onClick={() => navigateToDrop(dropId)}
-              className={`relative masonry-item p-5 rounded-[2rem] border border-white/10 bg-[#0a0a0a] shadow-[0_4px_20px_rgba(0,0,0,0.6)] flex flex-col transition-all duration-300 cursor-pointer hover:scale-[1.01] hover:border-white/20 active:scale-[0.98] ${justArrived ? 'new-drop-liquid' : ''}`}
-              style={getItemStyle(idx)}
+              className={`tint-card masonry-item rounded-[28px] p-4 cursor-pointer ${isFocus ? 'drop-focus' : 'transition-transform duration-300 active:scale-[0.97]'} ${newDropIds.includes(dropId) ? 'new-drop-liquid' : ''}`}
+              style={roomVars}
             >
-              {isNew && <div className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full" />}
-              <div className="flex items-center gap-2 mb-3">
-                <img src={`/avatars/${item.avatarIndex}.png`} className="w-8 h-8 rounded-full border shadow-sm" alt="" />
-                <span className="text-[10px] font-black uppercase text-white/60 truncate max-w-[100px]">{item.tempName}</span>
+              {isNew && <span className="absolute top-3.5 right-3.5 w-[7px] h-[7px] rounded-full" style={{ background: 'var(--ink)' }} />}
+              <div className="flex items-center gap-2 mb-2.5">
+                <img src={`/avatars/${item.avatarIndex ?? 0}.png`} className="w-8 h-8 rounded-full" alt="" />
+                <span className="text-[14px] font-semibold truncate max-w-[108px]" style={{ letterSpacing: '-0.01em' }}>{item.tempName}</span>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium leading-relaxed text-white/80">{display}</p>
-                {isLong && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigateToDrop(dropId); }}
-                    className="text-[10px] font-black uppercase mt-1 hover:text-white"
-                    style={{ color: data.room.color }}
-                  >
-                    read more
-                  </button>
-                )}
-              </div>
-              <div className="mt-4 border-t border-white/10 pt-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-4 items-center">
-                    <button
-                      onClick={(e) => handleVote(dropId, 'likes', e)}
-                      className={`flex items-center gap-1 text-[10px] font-black ${hasLiked ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                    >
-                      <Heart size={12} fill={hasLiked ? 'currentColor' : 'none'} /> {item.likes.length}
-                    </button>
-                    <button
-                      onClick={(e) => handleVote(dropId, 'dislikes', e)}
-                      className={`flex items-center gap-1 text-[10px] font-black ${hasDisliked ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                    >
-                      <Heart size={12} fill={hasDisliked ? 'currentColor' : 'none'} className="rotate-180" /> {item.dislikes.length}
-                    </button>
-                  </div>
-                  <span className="text-[8px] font-black uppercase text-white/25">{formatTime(item.createdAt)}</span>
-                </div>
-                {rc > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] font-black text-white/30">
-                    <MessageCircle size={11} />
-                    <span>{rc} subdrop{rc !== 1 ? 's' : ''}</span>
-                  </div>
-                )}
+              <p className="text-[16px] leading-[1.38] font-medium" style={{ letterSpacing: '-0.012em' }}>{display}</p>
+              <div className="mt-3.5 flex items-center gap-3.5 text-[13.5px] font-semibold" style={hint}>
+                <button onClick={(e) => handleVote(dropId, 'likes', e)} className="press flex items-center gap-1" style={liked ? { color: 'var(--ink)' } : undefined}>
+                  <Heart size={14} strokeWidth={2.1} fill={liked ? 'currentColor' : 'none'} /> {item.likes.length}
+                </button>
+                <button onClick={(e) => handleVote(dropId, 'dislikes', e)} className="press flex items-center gap-1" style={disliked ? { color: 'var(--ink)' } : undefined}>
+                  <ThumbsDown size={14} strokeWidth={2.1} fill={disliked ? 'currentColor' : 'none'} /> {item.dislikes.length}
+                </button>
+                {rc > 0 && <span className="flex items-center gap-1"><MessageCircle size={14} strokeWidth={2.1} /> {rc}</span>}
+                <span className="ml-auto font-medium">{formatTime(item.createdAt)}</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* FAB MENU */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3">
+      {/* ADD */}
+      <AnimatePresence>
+        {fab && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setFab(false)}
+            className="fixed inset-0 z-40"
+            style={{ background: 'rgba(255,255,255,0.4)', WebkitBackdropFilter: 'blur(10px)', backdropFilter: 'blur(10px)' }}
+          />
+        )}
+      </AnimatePresence>
+      <div className="fixed inset-x-0 z-50 flex flex-col items-center gap-3 pointer-events-none" style={{ bottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
         <AnimatePresence>
-          {showFabMenu && (
+          {fab && (
             <>
               <motion.button
-                initial={{ opacity: 0, y: 16, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.8 }}
-                transition={{ delay: 0.04 }}
-                onClick={() => { setShowFabMenu(false); setShowPollModal(true); }}
-                className="w-14 h-14 bg-[#0a0a0a] rounded-full flex flex-col items-center justify-center shadow-2xl border-2 border-[#a78bfa]/40 active:scale-90 transition-transform"
+                initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.8 }}
+                transition={{ type: 'spring', stiffness: 460, damping: 30, delay: 0.05 }}
+                onClick={() => { setFab(false); setShowPoll(true); }}
+                className="glass glass-strong press pointer-events-auto h-[52px] pl-5 pr-6 rounded-full flex items-center gap-2.5 text-[17.5px] font-semibold"
+                style={{ letterSpacing: '-0.02em' }}
               >
-                <BarChart2 size={20} className="text-[#a78bfa]" />
-                <span className="text-[6px] font-black uppercase text-[#a78bfa] tracking-wider mt-0.5">Poll</span>
+                <ChartNoAxesColumn size={19} strokeWidth={2} /> Poll
               </motion.button>
               <motion.button
-                initial={{ opacity: 0, y: 16, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.8 }}
-                onClick={() => { setShowFabMenu(false); setShowDropModal(true); }}
-                className="w-14 h-14 bg-[#0a0a0a] rounded-full flex flex-col items-center justify-center shadow-2xl border-2 border-white/20 active:scale-90 transition-transform"
+                initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.8 }}
+                transition={{ type: 'spring', stiffness: 460, damping: 30 }}
+                onClick={() => { setFab(false); setShowDrop(true); }}
+                className="glass glass-strong press pointer-events-auto h-[52px] pl-5 pr-6 rounded-full flex items-center gap-2.5 text-[17.5px] font-semibold"
+                style={{ letterSpacing: '-0.02em' }}
               >
-                <MessageCircle size={20} className="text-white" />
-                <span className="text-[6px] font-black uppercase text-white/60 tracking-wider mt-0.5">Drop</span>
+                <MessageCircle size={19} strokeWidth={2} /> Drop
               </motion.button>
             </>
           )}
         </AnimatePresence>
         <button
-          onClick={() => setShowFabMenu(p => !p)}
-          className="w-16 h-16 bg-black rounded-full flex items-center justify-center shadow-2xl transition-transform active:scale-90 hover:scale-105 border-2 border-white/20"
+          onClick={() => setFab((p) => !p)} aria-label="New"
+          className="glass press pointer-events-auto w-[67px] h-[67px] rounded-full flex items-center justify-center"
         >
-          <motion.div animate={{ rotate: showFabMenu ? 45 : 0 }} transition={{ duration: 0.2 }}>
-            <Plus color="white" size={32} />
-          </motion.div>
+          <motion.span animate={{ rotate: fab ? 45 : 0 }} transition={{ type: 'spring', stiffness: 400, damping: 24 }} className="flex">
+            <Plus size={30} strokeWidth={2.2} />
+          </motion.span>
         </button>
       </div>
 
-      <AnimatePresence>
-        {showFabMenu && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setShowFabMenu(false)}
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+      {/* DROP */}
+      <Sheet open={showDrop} onClose={() => { setShowDrop(false); setDropError(null); }} title="New Drop">
+        <div className="flex flex-col gap-3">
+          <input className={fieldClass} placeholder="Name (optional)" maxLength={30} value={dropName} onChange={(e) => setDropName(e.target.value)} />
+          <textarea
+            maxLength={400}
+            className={`${fieldClass} h-36 resize-none ${dropError ? 'animate-shake' : ''}`}
+            placeholder="What's the tea?"
+            value={dropContent}
+            onChange={(e) => { setDropContent(e.target.value); setDropError(null); setDropBadWord(null); }}
           />
-        )}
-      </AnimatePresence>
+          <div className="flex items-center justify-between px-1 h-5 text-[14px] font-semibold" style={hint}>
+            <span>{dropError && <ErrorMsg text={dropError} word={dropBadWord} />}</span>
+            <span style={{ color: 'var(--ink-3)' }}>{dropContent.length}/400</span>
+          </div>
+          <PrimaryButton onClick={handleDrop} disabled={!dropContent.trim()}>Drop</PrimaryButton>
+        </div>
+      </Sheet>
 
-      {/* DROP MODAL */}
-      <AnimatePresence>
-        {showDropModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-              className="w-full max-w-md rounded-[2.5rem] p-8 border border-white/10 bg-[#0a0a0a] shadow-2xl"
-            >
-              <div className="flex justify-between mb-6">
-                <h2 className="text-xl font-black uppercase italic">New Drop</h2>
-                <button onClick={() => { setShowDropModal(false); setDropError(null); }} className="hover:rotate-90 transition-transform text-white/40 hover:text-white">
-                  <X />
-                </button>
-              </div>
-              {data.room.isAdult && (
-                <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl border border-red-500/20 bg-red-500/5">
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/80 text-white font-black">18+</span>
-                  <p className="text-[9px] text-white/40">Adult room — unfiltered language allowed</p>
-                </div>
-              )}
-              <input
-                className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111]"
-                placeholder="Display Name..."
-                value={dropName}
-                onChange={e => setDropName(e.target.value)}
-              />
-              <textarea
-                maxLength={400}
-                className={`w-full border p-4 rounded-xl mb-2 h-36 resize-none outline-none bg-black text-white transition-all ${dropError ? 'border-red-600 shadow-[0_0_15px_rgba(220,38,38,0.3)] animate-shake' : 'border-white/10 focus:bg-[#111]'}`}
-                placeholder="What's the tea?"
-                value={dropContent}
-                onChange={e => { setDropContent(e.target.value); setDropError(null); setDropBadWord(null); }}
-              />
-              {dropError && <p className="text-[10px] font-black uppercase mb-2 animate-pulse"><ErrorMsg text={dropError} word={dropBadWord} /></p>}
-              <p className="text-[10px] text-white/25 text-right font-bold mb-6">{dropContent.length}/400</p>
-              <button onClick={handleDrop} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all">
-                Drop It
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* POLL MODAL */}
-      <AnimatePresence>
-        {showPollModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-              className="w-full max-w-md rounded-[2.5rem] p-8 border border-white/10 bg-[#0a0a0a] shadow-2xl max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <BarChart2 size={18} className="text-[#a78bfa]" />
-                  <h2 className="text-xl font-black uppercase italic">New Poll</h2>
-                </div>
-                <button onClick={() => { setShowPollModal(false); setPollError(null); }} className="hover:rotate-90 transition-transform text-white/40 hover:text-white">
-                  <X />
-                </button>
-              </div>
-              <input
-                className="w-full border border-white/10 bg-black text-white p-4 rounded-xl mb-4 font-bold outline-none placeholder:text-white/30 focus:bg-[#111]"
-                placeholder="Display Name..."
-                value={pollName}
-                onChange={e => setPollName(e.target.value)}
-              />
-              <textarea
-                maxLength={200}
-                className={`w-full border p-4 rounded-xl mb-4 h-24 resize-none outline-none bg-black text-white ${pollError ? 'border-red-600' : 'border-white/10 focus:bg-[#111]'}`}
-                placeholder="Ask something..."
-                value={pollQuestion}
-                onChange={e => { setPollQuestion(e.target.value); setPollError(null); }}
-              />
-              <p className="text-[10px] font-black uppercase text-white/35 tracking-widest mb-3">Options (2–4)</p>
-              <div className="flex flex-col gap-2 mb-4">
-                {pollOptions.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      maxLength={80}
-                      className="flex-1 border border-white/10 bg-black text-white p-3 rounded-xl font-bold outline-none placeholder:text-white/25 focus:bg-[#111] text-sm"
-                      placeholder={`Option ${i + 1}`}
-                      value={opt}
-                      onChange={e => { const u = [...pollOptions]; u[i] = e.target.value; setPollOptions(u); setPollError(null); }}
-                    />
-                    {pollOptions.length > 2 && (
-                      <button onClick={() => setPollOptions(p => p.filter((_, j) => j !== i))} className="text-white/30 hover:text-white">
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {pollOptions.length < 4 && (
-                  <button onClick={() => setPollOptions(p => [...p, ''])} className="text-[10px] font-black uppercase text-[#a78bfa] tracking-widest text-left mt-1">
-                    + Add option
+      {/* POLL */}
+      <Sheet open={showPoll} onClose={() => { setShowPoll(false); setPollError(null); }} title="New Poll">
+        <div className="flex flex-col gap-3">
+          <input className={fieldClass} placeholder="Name (optional)" maxLength={30} value={pollName} onChange={(e) => setPollName(e.target.value)} />
+          <textarea
+            maxLength={200}
+            className={`${fieldClass} h-24 resize-none ${pollError ? 'animate-shake' : ''}`}
+            placeholder="Ask something"
+            value={pollQuestion}
+            onChange={(e) => { setPollQuestion(e.target.value); setPollError(null); }}
+          />
+          <div className="flex flex-col gap-2">
+            {pollOptions.map((opt, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  maxLength={80} className={`${fieldClass} !py-3`} placeholder={`Option ${i + 1}`} value={opt}
+                  onChange={(e) => { const u = [...pollOptions]; u[i] = e.target.value; setPollOptions(u); setPollError(null); }}
+                />
+                {pollOptions.length > 2 && (
+                  <button onClick={() => setPollOptions((p) => p.filter((_, j) => j !== i))} aria-label="Remove option" className="press w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--fill)' }}>
+                    <X size={15} strokeWidth={2.6} style={hint} />
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-3 mb-6 p-4 rounded-xl border border-white/10 bg-black/30">
-                <button
-                  onClick={() => setPollMultiple(p => !p)}
-                  className={`w-10 h-5 rounded-full relative transition-all ${pollMultiple ? 'bg-[#a78bfa]' : 'bg-white/10'}`}
-                >
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${pollMultiple ? 'left-5' : 'left-0.5'}`} />
-                </button>
-                <div>
-                  <p className="text-[11px] font-black uppercase text-white/65 tracking-wider">Multiple Choice</p>
-                  <p className="text-[9px] text-white/30">Allow selecting more than one option</p>
-                </div>
-              </div>
-              {pollError && <p className="text-[10px] font-black uppercase mb-4 animate-pulse"><ErrorMsg text={pollError} word={pollBadWord} /></p>}
-              <button
-                onClick={handleCreatePoll}
-                className="w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] active:scale-95 transition-all text-black"
-                style={{ background: '#a78bfa' }}
-              >
-                Launch Poll
+            ))}
+            {pollOptions.length < 4 && (
+              <button onClick={() => setPollOptions((p) => [...p, ''])} className="press self-start flex items-center gap-1.5 text-[16px] font-semibold px-3.5 h-9 rounded-full" style={{ background: 'var(--fill)' }}>
+                <Plus size={15} strokeWidth={2.6} /> Option
               </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            )}
+          </div>
+          <div className="group-card" style={{ background: 'rgba(255,255,255,0.6)' }}>
+            <div className="flex items-center justify-between px-4 h-[58px]">
+              <span className="text-[18px] font-medium" style={{ letterSpacing: '-0.02em' }}>Multiple choice</span>
+              <button type="button" role="switch" aria-checked={pollMultiple} aria-label="Multiple choice" className="ios-switch" onClick={() => setPollMultiple((p) => !p)}><i /></button>
+            </div>
+          </div>
+          <div className="h-5 px-1 text-[14px] font-semibold" style={hint}>{pollError && <ErrorMsg text={pollError} word={pollBadWord} />}</div>
+          <PrimaryButton onClick={handleCreatePoll}>Launch</PrimaryButton>
+        </div>
+      </Sheet>
 
-      <AnimatePresence>
-        {showAdminPanel && <AdminPanel room={data.room} onClose={() => setShowAdminPanel(false)} />}
-      </AnimatePresence>
+      <AdminPanel room={data.room} open={showAdmin} onClose={() => setShowAdmin(false)} />
     </main>
   );
 }

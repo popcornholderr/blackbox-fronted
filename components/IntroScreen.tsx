@@ -1,50 +1,42 @@
 "use client";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
+/** Opening wordmark. Plays once when the site is opened, never again. */
 export default function IntroScreen({ onFinish }: { onFinish: () => void }) {
-  const [phase, setPhase] = useState<'in' | 'hold' | 'out'>('in');
+  const [out, setOut] = useState(false);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('hold'), 200);
-    const t2 = setTimeout(() => setPhase('out'), 1600);
-    const t3 = setTimeout(() => onFinish(), 2200);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
+    const t1 = setTimeout(() => setOut(true), 1750);
+    const t2 = setTimeout(onFinish, 2450);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [onFinish]);
 
   return (
-    <div
-      className="fixed inset-0 z-[999] flex items-center justify-center bg-black overflow-hidden"
-      style={{
-        opacity: phase === 'out' ? 0 : 1,
-        transition: phase === 'out' ? 'opacity 0.55s cubic-bezier(0.4,0,0.2,1)' : 'none',
-        pointerEvents: phase === 'out' ? 'none' : 'all',
-      }}
+    <motion.div
+      className="fixed inset-0 z-[999] flex items-center justify-center overflow-hidden"
+      style={{ background: '#fff', pointerEvents: out ? 'none' : 'all' }}
+      animate={{ opacity: out ? 0 : 1 }}
+      transition={{ duration: 0.65, ease: [0.4, 0, 0.2, 1] }}
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(250,201,246,0.07) 0%, transparent 70%)',
-          opacity: phase === 'hold' ? 1 : 0,
-          transition: 'opacity 0.4s ease',
-        }}
+      {/* a single soft light, drifting */}
+      <motion.div
+        aria-hidden
+        className="absolute rounded-full"
+        style={{ width: '70vmax', height: '70vmax', background: 'radial-gradient(circle, rgba(0,0,0,0.05), transparent 62%)', filter: 'blur(30px)' }}
+        initial={{ x: '-14vmax', y: '-6vmax', opacity: 0 }}
+        animate={{ x: '12vmax', y: '6vmax', opacity: 1 }}
+        transition={{ duration: 2.4, ease: [0.22, 1, 0.36, 1] }}
       />
-      <h1
-        className="text-4xl font-black tracking-tighter select-none text-white"
-        style={{
-          opacity: phase === 'in' ? 0 : 1,
-          transform: phase === 'in' ? 'scale(0.85)' : 'scale(1)',
-          transition:
-            'opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
-        }}
+      <motion.h1
+        className="relative select-none font-bold"
+        style={{ fontSize: 'clamp(34px, 9vw, 44px)', color: 'var(--ink)' }}
+        initial={{ opacity: 0, filter: 'blur(16px)', scale: 1.06, letterSpacing: '0.16em' }}
+        animate={{ opacity: 1, filter: 'blur(0px)', scale: 1, letterSpacing: '-0.045em' }}
+        transition={{ duration: 1.25, ease: [0.22, 1, 0.36, 1] }}
       >
-        B<span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>L</span>ACK BOX
-      </h1>
-    </div>
+        B<span className="mirror">L</span>ACK BOX
+      </motion.h1>
+    </motion.div>
   );
 }

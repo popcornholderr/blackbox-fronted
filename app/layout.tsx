@@ -1,18 +1,12 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Update this block with your high-performing search keywords
 export const metadata: Metadata = {
   title: 'The Black Box | Anonymous Chat Rooms & Private Spaces',
   description: 'Create private, dark-themed rooms and chat anonymously instantly. No registration, no tracking—just pure, real-time anonymous conversations inside The Black Box.',
@@ -23,6 +17,13 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,14 +32,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
-      style={{ colorScheme: 'dark' }}
+      className={`${inter.variable} h-full antialiased`}
+      style={{ colorScheme: 'light' }}
     >
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#000000" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Black Box" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
@@ -46,6 +46,7 @@ export default function RootLayout({
         className="min-h-full flex flex-col"
         suppressHydrationWarning={true}
       >
+        <div className="atmos" aria-hidden />
         {children}
       </body>
     </html>

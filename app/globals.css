@@ -1,202 +1,441 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", var(--font-inter), "Inter", system-ui, sans-serif;
 }
 
+/* ============================================================
+   TOKENS — strictly monochrome. Colour lives on room tiles only.
+   ============================================================ */
 :root {
-  --background: #000000;
-  --foreground: #ffffff;
+  --paper: #ffffff;
+  --ink: #0b0b0d;
+  --ink-2: rgba(60, 60, 67, 0.62);
+  --ink-3: rgba(60, 60, 67, 0.34);
+  --fill: rgba(120, 120, 128, 0.12);
+  --fill-2: rgba(120, 120, 128, 0.07);
+  --hair: rgba(0, 0, 0, 0.07);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  background: var(--paper);
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background-color: var(--background) !important;
-  color: var(--foreground) !important;
-  font-family: 'Inter', sans-serif;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: -0.011em;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* --- CAPSULE STYLES (Preserved) --- */
-.capsule-active {
-  color: #fac9f6; /* Green-500 */
+::selection {
+  background: rgba(11, 11, 13, 0.1);
 }
 
-.capsule-inactive {
-  color: #9ca3af; /* Gray-400 */
+input,
+textarea,
+button {
+  font: inherit;
+  letter-spacing: inherit;
 }
 
-.capsule-shadow {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+input:focus,
+textarea:focus {
+  caret-color: var(--ink);
 }
 
-/* --- TEXT CLAMPING & TRUNCATION --- */
-
-
-
-
-.clamp-none {
-  -webkit-line-clamp: unset !important;
-  display: block !important;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* --- MASONRY GRID --- */
-/* --- FIXED MASONRY GRID --- */
+
+/* ============================================================
+   PHONE SCALE — on phone-width screens, render everything ~10%
+   larger (text, icons, bars, spacing) so it reads big and rich.
+   ============================================================ */
+@media (min-width: 340px) and (max-width: 500px) {
+  :root { --z: 1.1; }
+  body { zoom: var(--z); }
+  .min-h-screen { min-height: calc(100vh / var(--z)); }
+}
+
+@layer components {
+/* ============================================================
+   ATMOSPHERE — a whisper of grey light so glass has depth.
+   ============================================================ */
+.atmos {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60vmax 50vmax at 12% -8%, rgba(0, 0, 0, 0.035), transparent 65%),
+    radial-gradient(55vmax 45vmax at 105% 40%, rgba(0, 0, 0, 0.03), transparent 65%),
+    var(--paper);
+}
+
+/* ============================================================
+   LIQUID GLASS
+   Layered: translucent body + blur/saturation + specular rim
+   (lit from top-left) + inner light + soft drop shadow.
+   ============================================================ */
+.glass {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.3) 55%, rgba(244, 244, 247, 0.4) 100%);
+  -webkit-backdrop-filter: blur(22px) saturate(185%);
+  backdrop-filter: blur(22px) saturate(185%);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.07),
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 14px 34px -12px rgba(0, 0, 0, 0.16);
+}
+
+/* specular rim */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.15) 26%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(255, 255, 255, 0.2) 76%,
+    rgba(255, 255, 255, 0.95) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* top sheen */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 70% at 20% -10%, rgba(255, 255, 255, 0.55), transparent 60%);
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.7;
+}
+
+.glass-strong {
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.74) 60%, rgba(247, 247, 250, 0.8) 100%);
+  -webkit-backdrop-filter: blur(38px) saturate(200%);
+  backdrop-filter: blur(38px) saturate(200%);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0.5px rgba(255, 255, 255, 1),
+    0 2px 6px rgba(0, 0, 0, 0.05),
+    0 30px 70px -20px rgba(0, 0, 0, 0.28);
+}
+
+/* pressed state for small glass controls */
+.press {
+  transition: transform 0.35s var(--spring), opacity 0.2s ease;
+}
+.press:active {
+  transform: scale(0.94);
+}
+
+/* grouped, inset iOS list */
+.group-card {
+  background: rgba(255, 255, 255, 0.7);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 22px;
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 16px 40px -22px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.group-row + .group-row {
+  border-top: 0.5px solid var(--hair);
+}
+
+/* soft top blur so content melts under the status area */
+.top-fade {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 28px);
+  z-index: 60;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent);
+  mask-image: linear-gradient(to bottom, #000 35%, transparent);
+}
+
+/* ============================================================
+   ROOM TILE — the only coloured surface in the app.
+   Colour is diluted into a pale, blurred wash; never flat/harsh.
+   ============================================================ */
+.tile {
+  --c: #c9c9d1;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--c) 16%, white) 0%, color-mix(in srgb, var(--c) 7%, white) 100%);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 18px 36px -20px color-mix(in srgb, var(--c) 55%, rgba(0, 0, 0, 0.4));
+  transition: transform 0.45s var(--spring), box-shadow 0.45s var(--ease);
+}
+.tile:active {
+  transform: scale(0.97);
+}
+.tile .blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(30px);
+  z-index: -1;
+  pointer-events: none;
+}
+.tile .blob.a {
+  width: 78%;
+  height: 78%;
+  left: -18%;
+  top: -22%;
+  background: color-mix(in srgb, var(--c) 46%, white);
+  opacity: 0.75;
+}
+.tile .blob.b {
+  width: 70%;
+  height: 70%;
+  right: -22%;
+  bottom: -26%;
+  background: color-mix(in srgb, var(--c) 34%, white);
+  opacity: 0.7;
+}
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0.5) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+  z-index: 3;
+}
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(110% 60% at 25% 0%, rgba(255, 255, 255, 0.5), transparent 62%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* tinted surfaces inside a room (cards, bubbles) */
+.tint-card {
+  --c: #c9c9d1;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--c) 13%, white) 0%, color-mix(in srgb, var(--c) 5%, white) 100%);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.95),
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 16px 32px -22px color-mix(in srgb, var(--c) 60%, rgba(0, 0, 0, 0.4));
+}
+.tint-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(100% 50% at 20% 0%, rgba(255, 255, 255, 0.55), transparent 65%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ============================================================
+   MASONRY (room feed)
+   ============================================================ */
 .masonry-grid {
-  display: block; /* Ensure it doesn't try to use flex/grid internally */
+  display: block;
   column-count: 2;
-  column-gap: 16px;
+  column-gap: 14px;
   width: 100%;
 }
-
 .masonry-item {
-  display: inline-block; /* Crucial: stops items from splitting across columns */
+  display: inline-block;
   width: 100%;
   break-inside: avoid;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
-/* --- NEW: LIQUID JUMP ANIMATION --- */
-/* This handles the "thick liquid" movement when a new drop lands */
+/* ============================================================
+   MOTION
+   ============================================================ */
+.drop-focus {
+  position: relative;
+  z-index: 5;
+  transform: scale(1.045);
+  transform-origin: center;
+  box-shadow:
+    0 0 0 1.5px var(--ink),
+    0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.95),
+    0 26px 46px -18px color-mix(in srgb, var(--c) 70%, rgba(0, 0, 0, 0.5));
+  animation: focusPop 0.6s cubic-bezier(0.22, 1.3, 0.36, 1) both;
+}
+@keyframes focusPop {
+  0% { transform: scale(0.96); }
+  100% { transform: scale(1.045); }
+}
+
 .new-drop-liquid {
   animation: liquidDrop 0.85s cubic-bezier(0.25, 1.4, 0.5, 1) forwards;
 }
-
 @keyframes liquidDrop {
-  0% { 
-    transform: translateY(-80px) scaleY(1.4) scaleX(0.7); 
-    opacity: 0; 
-    filter: blur(8px); 
+  0% {
+    transform: translateY(-60px) scaleY(1.3) scaleX(0.8);
+    opacity: 0;
+    filter: blur(8px);
   }
-  60% { 
-    transform: translateY(12px) scaleY(0.85) scaleX(1.15); 
-    filter: blur(0px);
+  60% {
+    transform: translateY(8px) scaleY(0.92) scaleX(1.06);
+    filter: blur(0);
   }
   85% {
-    transform: translateY(-5px) scaleY(1.05) scaleX(0.95);
-  }
-  100% { 
-    transform: translateY(0) scale(1); 
-    opacity: 1; 
-  }
-}
-
-/* --- NOTIFICATION DOT BADGE --- */
-.dot-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-background: #fac9f6; /* Vibrant red for visibility */
-color: #000;
-  min-width: 18px;
-  height: 18px;
-border: 2px solid #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 900;
-  border: 2px solid white;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-  z-index: 30;
-  pointer-events: none; /* Won't block clicks to the room tile */
-}
-
-/* Fallback for older browsers */
-.clamp-content {
-  display: -webkit-box;
-  -webkit-line-clamp: 6;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.dot-badge {
-  animation: pulseDot 1.2s infinite;
-}
-
-@keyframes pulseDot {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.25); }
-  100% { transform: scale(1); }
-}
-
-
-
-@keyframes growFade {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-    filter: blur(0px);
+    transform: translateY(-3px) scaleY(1.02) scaleX(0.98);
   }
   100% {
-    transform: scale(2.5);
-    opacity: 0;
-    filter: blur(10px);
-  }
-}
-
-.animate-growFade {
-  animation: growFade 6s ease forwards;
-
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 1s ease;
-}
-
-@keyframes fadeOut {
-  0% {
+    transform: translateY(0) scale(1);
     opacity: 1;
-    transform: scale(1);
-    filter: blur(0px);
   }
-  100% {
-    opacity: 0;
-    filter: blur(6px);
-  }
-}
-
-.animate-fadeOut {
-  
-  animation: fadeOut 2s ease forwards;
-  animation-delay: 1s;
-}
-
-.mirror {
-  display: inline-block; /* Crucial: transform won't work without this */
-  transform: scaleX(-1);
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-8px); }
-  50% { transform: translateX(8px); }
-  75% { transform: translateX(-8px); }
-}
-.animate-shake {
-  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-}
-
-.search-focus-glow {
-  box-shadow: 0 0 20px rgba(255, 169, 248, 0.1);
-}
-
-/* Update focus state for any inputs */
-input:focus {
-  caret-color: #fac9f6;
 }
 
 @keyframes fadeSlideUp {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-4px);
+  }
+}
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shimmer {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+.skeleton {
+  background: linear-gradient(160deg, rgba(120, 120, 128, 0.1), rgba(120, 120, 128, 0.05));
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.mirror {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+/* iOS switch */
+.ios-switch {
+  width: 51px;
+  height: 31px;
+  border-radius: 999px;
+  background: rgba(120, 120, 128, 0.18);
+  position: relative;
+  transition: background 0.3s var(--ease);
+  flex-shrink: 0;
+}
+.ios-switch[aria-checked="true"] {
+  background: var(--ink);
+}
+.ios-switch i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  transition: transform 0.35s var(--spring), width 0.2s ease;
+}
+.ios-switch[aria-checked="true"] i {
+  transform: translateX(20px);
+}
+.ios-switch:active i {
+  width: 32px;
+}
+.ios-switch[aria-checked="true"]:active i {
+  transform: translateX(15px);
+}
+
+} /* end @layer components */
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
