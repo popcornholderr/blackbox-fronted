@@ -6,39 +6,12 @@ const STATIC_ASSETS = [
   '/manifest.json',
 ];
 
-// Install — cache app shell
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
-  self.skipWaiting();
-});
-
-// Activate — clean old caches
+// No fetch handler on purpose: intercepting Next.js page/RSC/chunk requests
+// made navigation hang or return stale payloads. Just clear old caches.
+self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-// Fetch — network first, fall back to cache
-self.addEventListener('fetch', (event) => {
-  // Skip non-GET and API requests — always go to network for those
-  if (event.request.method !== 'GET') return;
-  if (event.request.url.includes('/api/')) return;
-
-  event.respondWith(
-    fetch(event.request)
-      .then((res) => {
-        // Cache a copy of successful responses
-        const resClone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
-        return res;
-      })
-      .catch(() => caches.match(event.request))
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).then(() => self.clients.claim())
   );
 });
 

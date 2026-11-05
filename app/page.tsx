@@ -238,7 +238,7 @@ export default function HomePage() {
       <div className="top-fade" aria-hidden />
 
       <main suppressHydrationWarning className="w-full max-w-[32rem] mx-auto min-h-screen relative select-none overflow-x-hidden" style={{ paddingBottom: 150 }}>
-        <AnimatePresence mode="popLayout" initial={false}>
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={tab}
             initial={{ opacity: 0 }}

@@ -39,6 +39,7 @@ export default function DropDetailPage() {
 
   const knownReplyCountRef = useRef<number>(0);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const lastJson = useRef('');
   const repliesEndRef = useRef<HTMLDivElement | null>(null);
 
   const userId = getUserId();
@@ -46,7 +47,10 @@ export default function DropDetailPage() {
   const fetchData = useCallback(async (silent = false) => {
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${slug}`, { headers: authHeaders(String(slug)) });
-      const data = await res.json();
+      const text = await res.text();
+      if (silent && text === lastJson.current) return;
+      lastJson.current = text;
+      const data = JSON.parse(text);
       const found = data.drops.find((d: any) => String(d._id).trim() === String(dropId).trim());
       if (!found) return;
       const replies = found.replies || [];
@@ -70,7 +74,7 @@ export default function DropDetailPage() {
 
   useEffect(() => {
     fetchData(false);
-    pollRef.current = setInterval(() => fetchData(true), POLL_INTERVAL);
+    pollRef.current = setInterval(() => { if (!document.hidden) fetchData(true); }, POLL_INTERVAL);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [fetchData]);
 

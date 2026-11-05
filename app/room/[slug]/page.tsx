@@ -270,6 +270,7 @@ function RoomContent() {
   const [seenDrops, setSeenDrops] = useState<string[]>([]);
   const [newDropIds, setNewDropIds] = useState<string[]>([]);
   const knownIdsRef = useRef<Set<string>>(new Set());
+  const lastJson = useRef('');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const ROOM_SCROLL_KEY = `scrollPos-room-${slug}`;
@@ -311,7 +312,10 @@ function RoomContent() {
     try {
       const res = await fetch(`${BASE_URL}/api/rooms/${slug}`, { headers: authHeaders(String(slug)) });
       if (!res.ok) return;
-      const incoming = await res.json();
+      const text = await res.text();
+      if (silent && text === lastJson.current) return;
+      lastJson.current = text;
+      const incoming = JSON.parse(text);
       if (!silent) {
         knownIdsRef.current = new Set(incoming.drops.map((d: any) => String(d._id).trim()));
         setData(incoming);
@@ -330,7 +334,7 @@ function RoomContent() {
 
   useEffect(() => {
     fetchRoom(false);
-    timerRef.current = setInterval(() => fetchRoom(true), POLL_MS);
+    timerRef.current = setInterval(() => { if (!document.hidden) fetchRoom(true); }, POLL_MS);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [fetchRoom]);
 

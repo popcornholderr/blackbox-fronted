@@ -73,8 +73,6 @@ textarea:focus {
    ============================================================ */
 @media (min-width: 340px) and (max-width: 500px) {
   :root { --z: 1.1; }
-  body { zoom: var(--z); }
-  .min-h-screen { min-height: calc(100vh / var(--z)); }
 }
 
 @layer components {
@@ -178,8 +176,6 @@ textarea:focus {
 /* grouped, inset iOS list */
 .group-card {
   background: rgba(255, 255, 255, 0.7);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
   border-radius: 22px;
   box-shadow:
     0 0 0 0.5px rgba(0, 0, 0, 0.06),
@@ -201,8 +197,6 @@ textarea:focus {
   z-index: 60;
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0));
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
   -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent);
   mask-image: linear-gradient(to bottom, #000 35%, transparent);
 }
